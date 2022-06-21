@@ -10,14 +10,14 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter("runs/mnist/gan")
+writer = SummaryWriter("runs/mnist/wgan")
 
 # GLOBAL VARIABLES
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-K = 1 # number of times to train the discriminator
-BATCH_SIZE = 32 # 32
+K = 5  # number of times to train the discriminator
+BATCH_SIZE = 64
 GENERATOR_LATENT_DIM = 100
 EPOCHS = 15
 
@@ -93,7 +93,6 @@ class Generator(nn.Module):
         self.deconv3 = nn.ConvTranspose2d(32*4, 16*2, kernel_size=4, stride=2, padding=1)  # -> [1, 1, 32, 32]
         self.deconv3_bn = nn.BatchNorm2d(16*2)
         self.deconv4 = nn.ConvTranspose2d(16*2, 1, kernel_size=4, stride=2, padding=1)
-        self.tanh = nn.Tanh()
 
         self._init_weights()
 
@@ -116,13 +115,11 @@ class Generator(nn.Module):
         x = F.relu(self.deconv2_bn(self.deconv2(x)))
         x = F.relu(self.deconv3_bn(self.deconv3(x)))
         x = self.deconv4(x)
-        x = self.tanh(x)
 
         return x
 
 
-
-def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimizer_g, num_epochs):
+def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimizer_g, num_epochs, c=0.01):
     """
     Train the GAN using vanilla loss
     """
@@ -147,15 +144,10 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 z = torch.randn(batchsize, GENERATOR_LATENT_DIM, 1, 1).to(device)
                 fake_data = generator(z)
 
-                real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-                fake_labels = torch.distributions.uniform.Uniform(0.0, 0.3).sample((batchsize,)) * torch.zeros(batchsize)
-                #real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), 0.9*torch.ones(real_data.size(0)).to(device))
-                #fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), torch.zeros(fake_data.size(0)).to(device))
+                real_loss = discriminator(real_data).reshape(-1).mean()
+                fake_loss = discriminator(fake_data).reshape(-1).mean()
 
-                real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), real_labels.to(device))
-                fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), fake_labels.to(device))
-
-                loss_d = real_loss + fake_loss
+                loss_d = real_loss - fake_loss
                 accu_loss_d.append(loss_d.item())
 
                 discriminator.zero_grad()
@@ -163,31 +155,36 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 optimizer_d.step()
                 optimizer_d.zero_grad()
 
+                for p in discriminator.parameters():
+                    p.data.clamp_(-c, c)
+
+
             # train the generator
             #discriminator.eval()
             #generator.train()
 
-            #fake_data = generator.sample(BATCH_SIZE)
-            real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-            loss_g = loss_func(discriminator(fake_data).reshape(-1).to(device), real_labels.to(device))
-            # loss_g = -1.0 * torch.mean(torch.log(discriminator(fake_data)))
+            loss_g = -1.0 * discriminator(fake_data).reshape(-1).mean()
+
             accu_loss_g.append(loss_g.item())
             generator.zero_grad()
             loss_g.backward()
             optimizer_g.step()
             optimizer_g.zero_grad()
+            # torch.clip_(generator.parameters(), -c, c)
 
+            #writer.add_scalar('Loss/discriminator', torch.asarray(accu_loss_d).mean(), epoch)
+            #writer.add_scalar('Loss/generator', torch.asarray(accu_loss_g).mean(), epoch)
 
             current_iteration = epoch * len(dataloader) + i
 
-            if i % 100 == 0:
+            if i % 50 == 0:
                 #print('Epoch: {}, Loss D: {}, Loss G: {}'.format(current_iteration, torch.asarray(accu_loss_d).mean(),
                 #                                                        torch.asarray(accu_loss_g).mean()))
                 print(f"Epoch [{epoch+1}/{num_epochs}]: Batch: [{i}/{len(dataloader)}],  ", end="")
                 print("Loss D: %-8.7f, Loss G: %-8.7f" % (torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()))
 
                 # torch.asarray(accu_loss_d).mean(),torch.asarray(accu_loss_g).mean()))
-                writer.add_scalars('COLAB/Loss', {'discriminator': torch.asarray(accu_loss_d).mean(),
+                writer.add_scalars('Loss', {'discriminator': torch.asarray(accu_loss_d).mean(),
                                             'generator': torch.asarray(accu_loss_g).mean()}, current_iteration)
                 #generator.eval()
                 with torch.no_grad():
@@ -231,10 +228,11 @@ if __name__ == "__main__":
     # Create the discriminator and generator
     discriminator = Discriminator().to(device)
     generator = Generator(GENERATOR_LATENT_DIM).to(device)
-    optimizer_d = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    optimizer_g = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+
+    optimizer_d = optim.RMSprop(discriminator.parameters(), lr=0.00005)  # RMSProp
+    optimizer_g = optim.RMSprop(generator.parameters(), lr=0.00005)
 
     # Train the GAN
     train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
-    create_gif()
+
 
