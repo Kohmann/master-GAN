@@ -28,7 +28,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 K = 1  # number of times to train the discriminator
 BATCH_SIZE = 32  # 32
 SEQUENCE_LENGTH = 30
-EPOCHS = 3
+EPOCHS = 50
 
 HIDDEN_SIZE = 32
 NUM_LAYERS = 1
@@ -69,9 +69,9 @@ class Discriminator(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.02)
                 nn.init.constant_(m.bias, 0)
 
-    def init_hidden(self, batch_size):
-        self.hidden = (torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32),
-                       torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32))
+    def init_hidden(self, batch_size, device=None):
+        self.hidden = (torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32, device=device),
+                       torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32, device=device))
 
     def forward(self, inputs):
         pred, self.hidden = self.lstm(inputs, self.hidden)
@@ -115,14 +115,14 @@ class Generator(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.02)
                 nn.init.constant_(m.bias, 0)
 
-    def init_hidden(self, batch_size):
-        self.hidden = (torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32),
-                       torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32))
+    def init_hidden(self, batch_size, device=None):
+        self.hidden = (torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32, device=device),
+                       torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=torch.float32, device=device))
 
     def forward(self, x):
         out, _ = self.lstm(x, self.hidden)
         out = self.linear(out)
-        out = self.tanh(out)
+        #out = self.tanh(out)
         return out
 
 
@@ -133,7 +133,6 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
 
     fixed_z = torch.randn(1, BATCH_SIZE, generator.input_size).to(device)
     step = 0
-    prev_plots = None
 
     for epoch in range(num_epochs):
         for i, (real, target) in enumerate(dataloader):
@@ -142,7 +141,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             real_data = real.to(device)
             discriminator.train()
 
-            discriminator.init_hidden(batchsize)
+            discriminator.init_hidden(batchsize, device=device)
             generator.init_hidden(batchsize)
 
             accu_loss_d = []
@@ -152,7 +151,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 # get the real data
                 z = torch.randn(1, batchsize, SEQUENCE_LENGTH, dtype=torch.float32, device=device)
                 with torch.no_grad():
-                    generator.init_hidden(batchsize)
+                    generator.init_hidden(batchsize, device=device)
                     fake_data = generator(z)
 
                 real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
@@ -160,7 +159,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                     batchsize)
                 # real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), 0.9*torch.ones(real_data.size(0)).to(device))
                 # fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), torch.zeros(fake_data.size(0)).to(device))
-                discriminator.init_hidden(batchsize)
+                discriminator.init_hidden(batchsize, device=device)
                 real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), real_labels.to(device))
                 fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), fake_labels.to(device))
 
@@ -173,13 +172,12 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 optimizer_d.zero_grad()
 
             # train the generator
-            discriminator.eval()
 
             real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-            generator.init_hidden(batchsize)
+            generator.init_hidden(batchsize, device=device)
             fake_data = generator(z)
 
-            discriminator.init_hidden(batchsize)
+            discriminator.init_hidden(batchsize, device=device)
             loss_g = loss_func(discriminator(fake_data).reshape(-1).to(device), real_labels.to(device))
 
             accu_loss_g.append(loss_g.item())
@@ -204,22 +202,16 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 with torch.no_grad():
                     fake_data = generator(fixed_z).squeeze(0)
 
+                    x_axis = np.linspace(0, 1, SEQUENCE_LENGTH)
+                    fig, axs = plt.subplots(3, 3, figsize=(10, 10))
 
-                    if prev_plots is not None:
-                        if (prev_plots == fake_data.cpu().numpy()).all():
-                            print("Generator is not learning")
+                    for x in range(3):
+                        for y in range(3):
+                            axs[x, y].plot(x_axis, fake_data[x * 3 + y].cpu().numpy())
+                            axs[x, y].set_ylim([-1, 1])
+                            axs[x, y].set_yticklabels([])
 
-                    prev_plots = fake_data.cpu().numpy()
-
-                    x = np.linspace(0, 1, SEQUENCE_LENGTH)
-                    fig, axs = plt.subplots(2, 2)
-                    [axs[x, y].set_ylim([-1, 1]) for x in range(2) for y in range(2)]  # set y-limit to [-1, 1]
-
-                    axs[0, 0].plot(x, fake_data[0, :].detach().numpy())
-                    axs[0, 1].plot(x, fake_data[1, :].detach().numpy(), 'tab:orange')
-                    axs[1, 0].plot(x, fake_data[2, :].detach().numpy(), 'tab:green')
-                    axs[1, 1].plot(x, fake_data[3, :].detach().numpy(), 'tab:red')
-
+                    fig.suptitle(f"Generation: {step}", fontsize=14)
                     writer.add_figure('Generated sinwaves', fig, step)
                     fig.savefig('./images/sinwave_at_epoch_{:04d}.png'.format(step))
                     plt.close('all')
@@ -251,7 +243,7 @@ def create_sinwaves(n_samples, wave_length, freq_range, amp_range, phase_range):
 
 
 if __name__ == "__main__":
-    transforms = transforms.Compose([transforms.ToTensor()])  # transforms.Normalize(0.5, 0.5)
+    transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0, 1)])
 
     num_samples = 10_000  # number of samples to be generated
     sinwaves = create_sinwaves(n_samples=num_samples, wave_length=SEQUENCE_LENGTH, freq_range=(1, 5),
@@ -278,8 +270,8 @@ if __name__ == "__main__":
                           num_layers=NUM_LAYERS,
                           output_size=SEQUENCE_LENGTH).to(device)
 
-    optimizer_d = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    optimizer_g = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizer_d = optim.Adam(discriminator.parameters(), lr=0.00002, betas=(0.5, 0.999))
+    optimizer_g = optim.Adam(generator.parameters(), lr=0.00002, betas=(0.5, 0.999))
 
     # Train the GAN
     train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
