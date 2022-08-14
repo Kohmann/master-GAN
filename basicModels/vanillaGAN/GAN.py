@@ -1,6 +1,7 @@
 """
 This is a simple implementation of the original GAN on MNIST data.
 """
+import numpy as np
 import torch
 import torchvision
 import torch.nn as nn
@@ -8,18 +9,21 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import time
 
 from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter("runs/mnist/gan")
 
 # GLOBAL VARIABLES
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("mps" if torch.has_mps else "cpu")
+device = torch.device("mps")
 
 K = 1 # number of times to train the discriminator
-BATCH_SIZE = 32 # 32
+BATCH_SIZE = 32*2 # 32
 GENERATOR_LATENT_DIM = 100
-EPOCHS = 15
+EPOCHS = 1
 
 
 
@@ -126,13 +130,13 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
     """
     Train the GAN using vanilla loss
     """
-
+    computeTime = []
     fixed_z = torch.randn(16, generator.latent_dim, 1, 1).to(device)
     step = 0
 
     for epoch in range(num_epochs):
         for i, (real, _) in enumerate(dataloader):
-
+            time_start = time.time()
             real_data = real.to(device)
             batchsize = real.size(0)
 
@@ -180,11 +184,14 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
 
             current_iteration = epoch * len(dataloader) + i
 
+            computeTime.append(time.time() - time_start)
+
             if i % 100 == 0:
                 #print('Epoch: {}, Loss D: {}, Loss G: {}'.format(current_iteration, torch.asarray(accu_loss_d).mean(),
                 #                                                        torch.asarray(accu_loss_g).mean()))
                 print(f"Epoch [{epoch+1}/{num_epochs}]: Batch: [{i}/{len(dataloader)}],  ", end="")
-                print("Loss D: %-8.7f, Loss G: %-8.7f" % (torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()))
+                print("Loss D: %-8.7f, Loss G: %-8.7f" % (torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()), end="")
+                print("  Seconds: %.5f" % computeTime[-1])
 
                 # torch.asarray(accu_loss_d).mean(),torch.asarray(accu_loss_g).mean()))
                 writer.add_scalars('COLAB/Loss', {'discriminator': torch.asarray(accu_loss_d).mean(),
@@ -196,6 +203,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                     writer.add_image('Generated Images', image_grid, step)
                     torchvision.utils.save_image(image_grid, './images/image_at_epoch_{:04d}.png'.format(step))
                     step += 1
+        print("Average time per batch: %.6f" % np.array(computeTime)[:-1].mean())
 
 
 
@@ -227,6 +235,7 @@ if __name__ == "__main__":
 
     image_sample, _ = next(iter(train_dl))
     print("image sample statistics: ", image_sample.shape, image_sample.max(), image_sample.min(), end="\n\n")
+    print("Using device:", device)
 
     # Create the discriminator and generator
     discriminator = Discriminator().to(device)
@@ -234,7 +243,9 @@ if __name__ == "__main__":
     optimizer_d = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
     optimizer_g = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
+    startTime = time.time()
     # Train the GAN
     train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
+    print("Training took %.5f seconds using %s" % (time.time() - startTime, device))
     create_gif()
 

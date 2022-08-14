@@ -2,7 +2,7 @@
 This is an implementation of the RGAN model proposed by paper:
      Real-valued (Medical) Time Series Generation with Recurrent Conditional GANs (2017)
 """
-
+import gc
 import glob
 from PIL import Image
 import numpy as np
@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torchvision
 import torch.nn as nn
+from torch import autograd
 import torch.nn.functional as F
 import torch.optim as optim
 from matplotlib import pyplot as plt
@@ -23,15 +24,18 @@ torch.autograd.set_detect_anomaly(True)
 writer = SummaryWriter("runs/RGAN")
 
 # GLOBAL VARIABLES
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps" if torch.has_mps else "cpu")
 
-K = 1  # number of times to train the discriminator
+K = 5  # number of times to train the discriminator
 BATCH_SIZE = 32  # 32
 SEQUENCE_LENGTH = 30
-EPOCHS = 50
+EPOCHS = 10
 
-HIDDEN_SIZE = 32
+HIDDEN_SIZE = 50
 NUM_LAYERS = 1
+
+G_LRATE = 0.00015
+D_LRATE = 0.00002
 
 
 class Discriminator(nn.Module):
@@ -76,8 +80,9 @@ class Discriminator(nn.Module):
     def forward(self, inputs):
         pred, self.hidden = self.lstm(inputs, self.hidden)
         pred = self.linear(pred)
-        pred = self.sigmoid(pred)
+        # pred = self.sigmoid(pred)
         # pred = pred.unsqueeze(0)
+        print("pred size", pred.size())
         return pred
 
 
@@ -122,7 +127,7 @@ class Generator(nn.Module):
     def forward(self, x):
         out, _ = self.lstm(x, self.hidden)
         out = self.linear(out)
-        #out = self.tanh(out)
+        out = self.tanh(out)
         return out
 
 
@@ -131,7 +136,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
     Train the GAN using vanilla loss
     """
 
-    fixed_z = torch.randn(1, BATCH_SIZE, generator.input_size).to(device)
+    fixed_z = torch.randn(1, BATCH_SIZE, generator.input_size, device=device)  # .to(device)
     step = 0
 
     for epoch in range(num_epochs):
@@ -142,11 +147,14 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             discriminator.train()
 
             discriminator.init_hidden(batchsize, device=device)
-            generator.init_hidden(batchsize)
+            # generator.init_hidden(batchsize, device=device)
 
             accu_loss_d = []
             accu_loss_g = []
-            # train the discriminator
+
+            # --------------------------
+            # Train the Discriminator
+            # --------------------------
             for _ in range(K):
                 # get the real data
                 z = torch.randn(1, batchsize, SEQUENCE_LENGTH, dtype=torch.float32, device=device)
@@ -154,16 +162,17 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                     generator.init_hidden(batchsize, device=device)
                     fake_data = generator(z)
 
-                real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-                fake_labels = torch.distributions.uniform.Uniform(0.0, 0.3).sample((batchsize,)) * torch.zeros(
-                    batchsize)
-                # real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), 0.9*torch.ones(real_data.size(0)).to(device))
-                # fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), torch.zeros(fake_data.size(0)).to(device))
+
+                real_labels = torch.ones(batchsize)
+                fake_labels = torch.zeros(batchsize)
+                #real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
+                #fake_labels = torch.distributions.uniform.Uniform(0.0, 0.3).sample((batchsize,)) * torch.zeros(batchsize)
+
                 discriminator.init_hidden(batchsize, device=device)
                 real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), real_labels.to(device))
                 fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), fake_labels.to(device))
 
-                loss_d = real_loss + fake_loss
+                loss_d = (real_loss + fake_loss) * 0.5
                 accu_loss_d.append(loss_d.item())
 
                 discriminator.zero_grad()
@@ -171,7 +180,9 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 optimizer_d.step()
                 optimizer_d.zero_grad()
 
-            # train the generator
+            # --------------------------
+            # Train the Generator
+            # --------------------------
 
             real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
             generator.init_hidden(batchsize, device=device)
@@ -212,9 +223,8 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                             axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {step}", fontsize=14)
-                    writer.add_figure('Generated sinwaves', fig, step)
                     fig.savefig('./images/sinwave_at_epoch_{:04d}.png'.format(step))
-                    plt.close('all')
+                    writer.add_figure('Generated sinwaves', fig, step)
                     step += 1
 
 
@@ -243,11 +253,12 @@ def create_sinwaves(n_samples, wave_length, freq_range, amp_range, phase_range):
 
 
 if __name__ == "__main__":
+
     transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0, 1)])
 
     num_samples = 10_000  # number of samples to be generated
-    sinwaves = create_sinwaves(n_samples=num_samples, wave_length=SEQUENCE_LENGTH, freq_range=(1, 5),
-                               amp_range=(0.1, 0.9), phase_range=(-np.pi, np.pi))
+    sinwaves = create_sinwaves(n_samples=num_samples, wave_length=SEQUENCE_LENGTH, freq_range=(4, 5),
+                               amp_range=(0.8, 0.9), phase_range=(-0.0, np.pi))
 
     print("sinwaves shape: ", sinwaves.shape)
     inputs = transforms(sinwaves).squeeze(0).float()
@@ -260,6 +271,7 @@ if __name__ == "__main__":
 
     sample, _ = next(iter(train_dl))
     print("Sample statistics: ", sample.shape, sample.max(), sample.min(), end="\n\n")
+    print("Training on %s" % device)
 
     # Create the discriminator and generator
     discriminator = Discriminator(input_size=SEQUENCE_LENGTH,
@@ -270,10 +282,11 @@ if __name__ == "__main__":
                           num_layers=NUM_LAYERS,
                           output_size=SEQUENCE_LENGTH).to(device)
 
-    optimizer_d = optim.Adam(discriminator.parameters(), lr=0.00002, betas=(0.5, 0.999))
-    optimizer_g = optim.Adam(generator.parameters(), lr=0.00002, betas=(0.5, 0.999))
+    optimizer_d = optim.Adam(discriminator.parameters(), lr=D_LRATE, betas=(0.5, 0.999))
+    optimizer_g = optim.Adam(generator.parameters(), lr=G_LRATE, betas=(0.5, 0.999))
 
     # Train the GAN
-    train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
-    create_gif(fp_in="images/sinwave_*.png", fp_out="images/sinewave_generation.gif")
+    #with autograd.detect_anomaly():
+    train(train_dl, discriminator, generator, nn.BCEWithLogitsLoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
+    #create_gif(fp_in="images/sinwave_*.png", fp_out="images/sinewave_generation2.gif")
 
