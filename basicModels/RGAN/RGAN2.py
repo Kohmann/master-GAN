@@ -4,6 +4,8 @@ This is an implementation of the RGAN model proposed by paper:
 """
 import gc
 import glob
+import time
+
 from PIL import Image
 import numpy as np
 import datetime
@@ -23,18 +25,19 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter("runs/RGAN/" + datetime.datetime.now().strftime("%d-%m-%Y--%H:%M:%S"))
 
 # GLOBAL VARIABLES
-device = torch.device("mps" if torch.has_mps else"cpu")
+device = "cpu" #torch.device("mps" if torch.has_mps else"cpu")
+torch.manual_seed(0)
 
 K = 5  # number of times to train the discriminator
-BATCH_SIZE = 32  # 32
+BATCH_SIZE = 64  # 32
 SEQUENCE_LENGTH = 30
-EPOCHS = 40
+EPOCHS = 100
 
-HIDDEN_SIZE = 30
+HIDDEN_SIZE = 100
 NUM_LAYERS = 1
 
-G_LRATE = 0.00002
-D_LRATE = 0.00002
+G_LRATE = 0.0001
+D_LRATE = 0.0001
 
 
 class Discriminator(nn.Module):
@@ -163,7 +166,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 real_loss = loss_func(discriminator(real_data).to(device), real_labels.to(device))
                 fake_loss = loss_func(discriminator(fake_data).to(device), fake_labels.to(device))
 
-                loss_d = (real_loss + fake_loss)  # * 0.5
+                loss_d = (real_loss + fake_loss) * 0.5
                 accu_loss_d.append(loss_d.item())
 
                 discriminator.zero_grad()
@@ -189,6 +192,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             current_iteration = epoch * len(dataloader) + i
 
             if current_iteration % 200 == 0:
+                print("%-2d: " % step, end="")
                 print(f"Epoch [{epoch + 1}/{num_epochs}]: Batch: [{i}/{len(dataloader)}],  ", end="")
                 print("Loss D: %-8.7f, Loss G: %-8.7f" % (
                     torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()))
@@ -241,10 +245,10 @@ if __name__ == "__main__":
     transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0, 1)])
 
     num_samples = 10_000  # number of samples to be generated
-    sinwaves = create_sinwaves(n_samples=num_samples, wave_length=SEQUENCE_LENGTH, freq_range=(1, 4),
-                               amp_range=(0.8, 0.9), phase_range=(0.0, 0.1))
+    sinwaves = create_sinwaves(n_samples=num_samples, wave_length=SEQUENCE_LENGTH, freq_range=(1, 5),
+                               amp_range=(0.4, 0.9), phase_range=(-np.pi, np.pi))
 
-    inputs = transforms(sinwaves).squeeze(0).float()
+    inputs = transforms(sinwaves).squeeze(0).float()#.to(device)
 
     train_data = TensorDataset(torch.asarray(inputs), torch.ones(num_samples))
 
@@ -268,5 +272,7 @@ if __name__ == "__main__":
     optimizer_g = optim.Adam(generator.parameters(), lr=G_LRATE, betas=(0.5, 0.999))
 
     # Train the GAN
+    start_time = time.time()
     train(train_dl, discriminator, generator, nn.BCEWithLogitsLoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
+    print("Time used: %.5fs" % (time.time() - start_time))
     create_gif(fp_in="images/sinwave_*.png", fp_out="images/sinewave_generation.gif")
