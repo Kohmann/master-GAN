@@ -1,6 +1,8 @@
 """
 This is a simple implementation of the original GAN on MNIST data.
 """
+import datetime
+
 import torch
 import torchvision
 import torch.nn as nn
@@ -10,11 +12,11 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter("runs/mnist/wgan")
+writer = SummaryWriter("runs/WGAN/" + datetime.datetime.now().strftime("%d-%m-%Y--%H:%M:%S"))
 
 # GLOBAL VARIABLES
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = "cuda" #torch.device("mps" if torch.has_mps else"cpu")
 
 K = 5  # number of times to train the discriminator
 BATCH_SIZE = 64
@@ -141,7 +143,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             # train the discriminator
             for _ in range(K):
                 # get the real data
-                z = torch.randn(batchsize, GENERATOR_LATENT_DIM, 1, 1).to(device)
+                z = torch.randn(batchsize, GENERATOR_LATENT_DIM, 1, 1, device=device)
                 fake_data = generator(z)
 
                 real_loss = discriminator(real_data).reshape(-1).mean()
@@ -224,6 +226,7 @@ if __name__ == "__main__":
 
     image_sample, _ = next(iter(train_dl))
     print("image sample statistics: ", image_sample.shape, image_sample.max(), image_sample.min(), end="\n\n")
+    print("Training on: %s" % device)
 
     # Create the discriminator and generator
     discriminator = Discriminator().to(device)
@@ -234,5 +237,6 @@ if __name__ == "__main__":
 
     # Train the GAN
     train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
+    #create_gif()
 
 

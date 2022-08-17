@@ -14,7 +14,7 @@ writer = SummaryWriter("runs/mnist/wgan")
 
 # GLOBAL VARIABLES
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device ="mps" #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 K = 5  # number of times to train the discriminator
 BATCH_SIZE = 64

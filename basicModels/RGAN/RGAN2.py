@@ -2,7 +2,6 @@
 This is an implementation of the RGAN model proposed by paper:
      Real-valued (Medical) Time Series Generation with Recurrent Conditional GANs (2017)
 """
-import gc
 import glob
 import time
 
@@ -13,13 +12,10 @@ import datetime
 import torch
 import torchvision
 import torch.nn as nn
-from torch import autograd
-import torch.nn.functional as F
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, TensorDataset
-
 from torch.utils.tensorboard import SummaryWriter
 
 writer = SummaryWriter("runs/RGAN/" + datetime.datetime.now().strftime("%d-%m-%Y--%H:%M:%S"))

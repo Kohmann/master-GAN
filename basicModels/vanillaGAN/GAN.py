@@ -1,6 +1,8 @@
 """
 This is a simple implementation of the original GAN on MNIST data.
 """
+import datetime
+
 import numpy as np
 import torch
 import torchvision
@@ -12,20 +14,19 @@ from torch.utils.data import DataLoader
 import time
 
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter("runs/mnist/gan")
+
+writer = SummaryWriter("runs/GAN/" + datetime.datetime.now().strftime("%d-%m-%Y--%H:%M:%S"))
 
 # GLOBAL VARIABLES
 
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# device = torch.device("mps" if torch.has_mps else "cpu")
-device = torch.device("mps")
+device = torch.device("mps" if torch.has_mps else "cpu")
 
-K = 1 # number of times to train the discriminator
-BATCH_SIZE = 32*2 # 32
+
+K = 1  # number of times to train the discriminator
+BATCH_SIZE = 64
 GENERATOR_LATENT_DIM = 100
-EPOCHS = 1
-
-
+EPOCHS = 5
 
 
 class Discriminator(nn.Module):
@@ -39,17 +40,19 @@ class Discriminator(nn.Module):
         """
         super(Discriminator, self).__init__()
 
-        self.conv1 = nn.Conv2d(1, 16*2, kernel_size=4, stride=2, padding=1, bias=True)  # -> (batch_size, 16, 16, 16)
-        #self.conv1_bn = nn.BatchNorm2d(16)
+        self.conv1 = nn.Conv2d(1, 16 * 2, kernel_size=4, stride=2, padding=1, bias=True)  # -> (batch_size, 16, 16, 16)
+        # self.conv1_bn = nn.BatchNorm2d(16)
         self.leaky_relu1 = nn.LeakyReLU(0.2)
-        self.conv2 = nn.Conv2d(16*2, 32*4, kernel_size=4, stride=2, padding=1, bias=False)  # -> (batch_size, 32, 8, 8)
-        self.conv2_bn = nn.BatchNorm2d(32*4)
+        self.conv2 = nn.Conv2d(16 * 2, 32 * 4, kernel_size=4, stride=2, padding=1,
+                               bias=False)  # -> (batch_size, 32, 8, 8)
+        self.conv2_bn = nn.BatchNorm2d(32 * 4)
         self.leaky_relu2 = nn.LeakyReLU(0.2)
-        self.conv3 = nn.Conv2d(32*4, 64*8, kernel_size=4, stride=2, padding=1, bias=False)  # -> [batch_size, 64, 4, 4]
-        self.conv3_bn = nn.BatchNorm2d(64*8)
+        self.conv3 = nn.Conv2d(32 * 4, 64 * 8, kernel_size=4, stride=2, padding=1,
+                               bias=False)  # -> [batch_size, 64, 4, 4]
+        self.conv3_bn = nn.BatchNorm2d(64 * 8)
         self.leaky_relu3 = nn.LeakyReLU(0.2)
 
-        self.conv4 = nn.Conv2d(64*8, 1, kernel_size=4, stride=2, padding=0, bias=False)  # -> [batch_size, 1, 1, 1]
+        self.conv4 = nn.Conv2d(64 * 8, 1, kernel_size=4, stride=2, padding=0, bias=False)  # -> [batch_size, 1, 1, 1]
         self.sigmoid = nn.Sigmoid()
 
         self._init_weights()
@@ -90,13 +93,15 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.latent_dim = latent_dim
 
-        self.deconv1 = nn.ConvTranspose2d(self.latent_dim, 64*8, kernel_size=4, stride=2, padding=0, bias=False)  # -> [1, 32, 4, 4]
-        self.deconv1_bn = nn.BatchNorm2d(64*8)
-        self.deconv2 = nn.ConvTranspose2d(64*8, 32*4, kernel_size=4, stride=2, padding=1, bias=False)  # -> [1, 16, 16, 16]
-        self.deconv2_bn = nn.BatchNorm2d(32*4)
-        self.deconv3 = nn.ConvTranspose2d(32*4, 16*2, kernel_size=4, stride=2, padding=1)  # -> [1, 1, 32, 32]
-        self.deconv3_bn = nn.BatchNorm2d(16*2)
-        self.deconv4 = nn.ConvTranspose2d(16*2, 1, kernel_size=4, stride=2, padding=1)
+        self.deconv1 = nn.ConvTranspose2d(self.latent_dim, 64 * 8, kernel_size=4, stride=2, padding=0,
+                                          bias=False)  # -> [1, 32, 4, 4]
+        self.deconv1_bn = nn.BatchNorm2d(64 * 8)
+        self.deconv2 = nn.ConvTranspose2d(64 * 8, 32 * 4, kernel_size=4, stride=2, padding=1,
+                                          bias=False)  # -> [1, 16, 16, 16]
+        self.deconv2_bn = nn.BatchNorm2d(32 * 4)
+        self.deconv3 = nn.ConvTranspose2d(32 * 4, 16 * 2, kernel_size=4, stride=2, padding=1)  # -> [1, 1, 32, 32]
+        self.deconv3_bn = nn.BatchNorm2d(16 * 2)
+        self.deconv4 = nn.ConvTranspose2d(16 * 2, 1, kernel_size=4, stride=2, padding=1)
         self.tanh = nn.Tanh()
 
         self._init_weights()
@@ -125,13 +130,12 @@ class Generator(nn.Module):
         return x
 
 
-
 def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimizer_g, num_epochs):
     """
     Train the GAN using vanilla loss
     """
     computeTime = []
-    fixed_z = torch.randn(16, generator.latent_dim, 1, 1).to(device)
+    fixed_z = torch.randn(16, generator.latent_dim, 1, 1, device=device).detach_()
     step = 0
 
     for epoch in range(num_epochs):
@@ -140,21 +144,16 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             real_data = real.to(device)
             batchsize = real.size(0)
 
-            #discriminator.train()
-            #generator.eval()
-
             accu_loss_d = []
             accu_loss_g = []
             # train the discriminator
             for _ in range(K):
                 # get the real data
-                z = torch.randn(batchsize, GENERATOR_LATENT_DIM, 1, 1).to(device)
+                z = torch.randn(batchsize, GENERATOR_LATENT_DIM, 1, 1, device=device)
                 fake_data = generator(z)
 
-                real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-                fake_labels = torch.distributions.uniform.Uniform(0.0, 0.3).sample((batchsize,)) * torch.zeros(batchsize)
-                #real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), 0.9*torch.ones(real_data.size(0)).to(device))
-                #fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), torch.zeros(fake_data.size(0)).to(device))
+                real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,))
+                fake_labels = torch.distributions.uniform.Uniform(0.0, 0.3).sample((batchsize,))
 
                 real_loss = loss_func(discriminator(real_data).reshape(-1).to(device), real_labels.to(device))
                 fake_loss = loss_func(discriminator(fake_data).reshape(-1).to(device), fake_labels.to(device))
@@ -168,11 +167,8 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 optimizer_d.zero_grad()
 
             # train the generator
-            #discriminator.eval()
-            #generator.train()
 
-            #fake_data = generator.sample(BATCH_SIZE)
-            real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
+            real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,))
             loss_g = loss_func(discriminator(fake_data).reshape(-1).to(device), real_labels.to(device))
             # loss_g = -1.0 * torch.mean(torch.log(discriminator(fake_data)))
             accu_loss_g.append(loss_g.item())
@@ -181,22 +177,19 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             optimizer_g.step()
             optimizer_g.zero_grad()
 
-
             current_iteration = epoch * len(dataloader) + i
 
             computeTime.append(time.time() - time_start)
 
             if i % 100 == 0:
-                #print('Epoch: {}, Loss D: {}, Loss G: {}'.format(current_iteration, torch.asarray(accu_loss_d).mean(),
-                #                                                        torch.asarray(accu_loss_g).mean()))
-                print(f"Epoch [{epoch+1}/{num_epochs}]: Batch: [{i}/{len(dataloader)}],  ", end="")
-                print("Loss D: %-8.7f, Loss G: %-8.7f" % (torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()), end="")
+                print(f"Epoch [{epoch + 1}/{num_epochs}]: Batch: [{i}/{len(dataloader)}],  ", end="")
+                print("Loss D: %-8.7f, Loss G: %-8.7f" % (
+                torch.asarray(accu_loss_d).mean(), torch.asarray(accu_loss_g).mean()), end="")
                 print("  Seconds: %.5f" % computeTime[-1])
 
-                # torch.asarray(accu_loss_d).mean(),torch.asarray(accu_loss_g).mean()))
-                writer.add_scalars('COLAB/Loss', {'discriminator': torch.asarray(accu_loss_d).mean(),
+                writer.add_scalars('Loss', {'discriminator': torch.asarray(accu_loss_d).mean(),
                                             'generator': torch.asarray(accu_loss_g).mean()}, current_iteration)
-                #generator.eval()
+                # generator.eval()
                 with torch.no_grad():
                     fake_data = generator(fixed_z)
                     image_grid = torchvision.utils.make_grid(fake_data, nrow=4, normalize=True)
@@ -204,7 +197,6 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                     torchvision.utils.save_image(image_grid, './images/image_at_epoch_{:04d}.png'.format(step))
                     step += 1
         print("Average time per batch: %.6f" % np.array(computeTime)[:-1].mean())
-
 
 
 import glob
@@ -219,18 +211,16 @@ def create_gif(fp_in="images/image_*.png", fp_out="images/mnist_generation.gif")
 
 
 if __name__ == "__main__":
-
     transforms = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Resize((32, 32)),
-                                    transforms.Normalize((0.5,), (0.5,)),
-                                    ])
-    mnist = datasets.MNIST('../mnist_data', train=True, download=True, transform=transforms)
-    ones = mnist.targets == 0
+                                     transforms.Resize((32, 32)),
+                                     transforms.Normalize(0.5, 0.5),
+                                     ])
 
-    #mnist_normalized = (mnist.data.view(-1, 1, 28, 28) - 127.5) / 127.5
-    #train_data = TensorDataset(mnist_normalized[ones], torch.ones(ones.sum()))
-    #train_data = TensorDataset(mnist)
+    mnist = datasets.MNIST('../mnist_data', train=True, download=True, transform=transforms)
     train_dl = DataLoader(mnist, batch_size=BATCH_SIZE, shuffle=True)
+    validation_dl = DataLoader(mnist, batch_size=BATCH_SIZE, shuffle=True)
+
+
     print("number of training data: {}".format(len(train_dl) * BATCH_SIZE))
 
     image_sample, _ = next(iter(train_dl))
@@ -248,4 +238,3 @@ if __name__ == "__main__":
     train(train_dl, discriminator, generator, nn.BCELoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
     print("Training took %.5f seconds using %s" % (time.time() - startTime, device))
     create_gif()
-
