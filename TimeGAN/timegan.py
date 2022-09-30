@@ -8,6 +8,7 @@ import torch.nn as nn
 import numpy as np
 
 from torch.utils.tensorboard import SummaryWriter
+
 writer = SummaryWriter("runs/TimeGAN")
 
 
@@ -31,6 +32,28 @@ def linear_weight_init(module):
                 torch.nn.init.xavier_uniform_(param)
             elif 'bias' in name:
                 param.data.fill_(0)
+
+
+class minmaxscaler:
+    def __init__(self):
+        self.matrix_min = None
+        self.matrix_max = None
+        self.denom = None
+
+    def fit(self, X):
+        self.matrix_min = X[:, :, :].min(axis=1, keepdims=True).values
+        self.matrix_max = X[:, :, :].max(axis=1, keepdims=True).values
+        self.denom = self.matrix_max - self.matrix_min
+
+    def fit_transform(self, X):
+        self.fit(X)
+        return self.transform(X)
+
+    def transform(self, X):
+        return (X - self.matrix_min) / self.denom
+
+    def inverse_transform(self, X):
+        return X * self.denom + self.matrix_min
 
 
 class EmbeddingNetwork(nn.Module):
@@ -134,7 +157,6 @@ class SupervisorNetwork(torch.nn.Module):
         self.num_layers = num_layers - 1 if num_layers > 1 else num_layers
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
-
 
         # Supervisor Architecture
         self.sup_rnn = torch.nn.GRU(
@@ -507,42 +529,8 @@ class TimeGAN(torch.nn.Module):
         return loss
 
 
-
-class TimeGANDataset(torch.utils.data.Dataset):
-    """TimeGAN Dataset for sampling data with their respective time
-    Args:
-        - data (numpy.ndarray): the padded dataset to be fitted (D x S x F)
-        - time (numpy.ndarray): the length of each data (D)
-    Parameters:
-        - x (torch.FloatTensor): the real value features of the data
-        - t (torch.LongTensor): the temporal feature of the data
-    """
-
-    def __init__(self, name, split, padding_value=None):
-        # sanity check
-        self.X, self.Y = [],[] #load_UCR_UEA_dataset(name, split=split, return_X_y=True)
-        self.X = [torch.tensor(self.X.iloc[i]).transpose(0, 1) for i in range(len(self.X))]
-        self.T = [x.size(0) for x in self.X]
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        return self.X[idx].float(), self.T[idx]
-
-    def collate_fn(self, batch):
-        """Minibatch sampling
-        """
-        # Pad sequences to max length
-        X_mb = [X for X in batch[0]]
-
-        # The actual length of each data
-        T_mb = [T for T in batch[1]]
-
-        return X_mb, T_mb
-
-
 from tqdm import trange
+
 
 def embedding_trainer(model, dataloader, e_opt, r_opt, n_epochs):
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
@@ -617,7 +605,6 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
         )
 
         writer.add_scalars("Loss/Joint", {"Embedding": E_loss, "Generator": G_loss, "Discriminator": D_loss}, epoch)
-
 
 
 def timegan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, max_seq_len, dis_thresh):
@@ -712,19 +699,22 @@ def timegan_generator(model, T, model_path, device, max_seq_len, Z_dim):
     return generated_data.numpy()
 
 
-def sine_data_generation(no, seq_len, dim):
+def sine_data_generation(no, seq_len, dim, temporal=False):
     """Sine data generation.
 
     Args:
       - no: the number of samples
       - seq_len: sequence length of the time-series
       - dim: feature dimensions
+      - temporal: whether to add temporal information
 
     Returns:
       - data: generated data
     """
     # Initialize the output
     data = list()
+    e = 0.7  # temporal information weight
+    importance = np.array([e ** i for i in range(1, seq_len)])
 
     # Generate sine data
     for i in range(no):
@@ -740,16 +730,22 @@ def sine_data_generation(no, seq_len, dim):
             temp_data = [np.sin(freq * j + phase) for j in range(seq_len)]
             temp.append(temp_data)
 
-        sine_comb = [(s1 + s2) / 2 for s1, s2 in zip(temp[0], temp[1])]
-        temp.append(sine_comb)
+        if temporal:
+            sin3 = []
+            for i in range(seq_len):
+                sin3.append(((importance[:i][::-1] * temp[0][:i] + importance[:i][::-1] * temp[1][:i]) / 2).sum())
+            temp.append(sin3)
+        else:
+            sine_comb = [(s1 + s2) for s1, s2 in zip(temp[0], temp[1])]  # / 2
+            temp.append(sine_comb)
         # Align row/column
         temp = torch.tensor(temp).transpose(0, 1)
         # Normalize to [0,1]
-        temp = (temp + 1) * 0.5
+        # temp = (temp + 1) * 0.5
         # Stack the generated data
         data.append(temp)
 
-    return data
+    return torch.stack(data)
 
 
 class TimeGANDatasetSinus(torch.utils.data.Dataset):
@@ -762,10 +758,11 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         - t (torch.LongTensor): the temporal feature of the data
     """
 
-    def __init__(self, num, seq_len, features):
+    def __init__(self, num, seq_len, features, temporal=False):
         # sanity check
-        # self.X, self.Y = load_UCR_UEA_dataset(name, split=split, return_X_y=True)
-        self.X = sine_data_generation(num, seq_len, features)
+        self.X_raw = sine_data_generation(num, seq_len, features, temporal=temporal)
+        self.X_scaler = minmaxscaler()
+        self.X = self.X_scaler.fit_transform(self.X_raw)
         self.T = [x.size(0) for x in self.X]
 
     def __len__(self):
@@ -786,8 +783,6 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         return X_mb, T_mb
 
 
-
-
 #######################################################################
 # Visualization
 
@@ -796,8 +791,6 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-
-
 
 
 def visualization(ori_data, generated_data, analysis):
@@ -877,6 +870,3 @@ def visualization(ori_data, generated_data, analysis):
         plt.xlabel('x-tsne')
         plt.ylabel('y_tsne')
         plt.show()
-
-
-
