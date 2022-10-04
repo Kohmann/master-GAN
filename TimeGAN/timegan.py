@@ -41,8 +41,8 @@ class minmaxscaler:
         self.denom = None
 
     def fit(self, X):
-        self.matrix_min = X[:, :, :].min(axis=1, keepdims=True).values
-        self.matrix_max = X[:, :, :].max(axis=1, keepdims=True).values
+        self.matrix_min = X.min(axis=1, keepdims=True).values
+        self.matrix_max = X.max(axis=1, keepdims=True).values
         self.denom = self.matrix_max - self.matrix_min
 
     def fit_transform(self, X):
@@ -70,7 +70,9 @@ class EmbeddingNetwork(nn.Module):
             input_size=self.feature_dim,
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
-            batch_first=True
+            batch_first=True,
+            #dropout=0.5
+            #bidirectional=True
         )
 
         self.emb_linear = nn.Linear(self.hidden_dim, self.hidden_dim)
@@ -116,7 +118,8 @@ class RecoveryNetwork(nn.Module):
             input_size=self.hidden_dim,
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
-            batch_first=True
+            batch_first=True,
+            bidirectional=False
         )
 
         self.rec_linear = torch.nn.Linear(self.hidden_dim, self.feature_dim)
@@ -163,7 +166,8 @@ class SupervisorNetwork(torch.nn.Module):
             input_size=self.hidden_dim,
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
-            batch_first=True
+            batch_first=True,
+            #bidirectional=True
         )
         self.sup_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
         self.sup_sigmoid = torch.nn.Sigmoid()
@@ -221,10 +225,11 @@ class GeneratorNetwork(torch.nn.Module):
             input_size=self.Z_dim,
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
-            batch_first=True
+            batch_first=True,
+            #bidirectional=True
         )
         self.gen_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
-        self.gen_sigmoid = torch.nn.Sigmoid()
+        self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
         rnn_weight_init(self.gen_rnn)
         linear_weight_init(self.gen_linear)
 
@@ -278,7 +283,8 @@ class DiscriminatorNetwork(torch.nn.Module):
             input_size=self.hidden_dim,
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
-            batch_first=True
+            batch_first=True,
+            #bidirectional=True
         )
         self.dis_linear = torch.nn.Linear(self.hidden_dim, 1)
         rnn_weight_init(self.dis_rnn)
@@ -362,7 +368,7 @@ class TimeGAN(torch.nn.Module):
 
         # Reconstruction Loss
         E_loss_T0 = torch.nn.functional.mse_loss(X_tilde, X)
-        E_loss0 = 10 * torch.sqrt(E_loss_T0)
+        E_loss0 = torch.sqrt(E_loss_T0) # * 10
         E_loss = E_loss0 + 0.1 * G_loss_S
         return E_loss, E_loss0, E_loss_T0
 
@@ -402,7 +408,8 @@ class TimeGAN(torch.nn.Module):
         Y_fake = self.discriminator(H_hat, T)  # Output of generator + supervisor
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
 
-        D_loss_real = torch.nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
+        smooth_label_real = torch.ones_like(Y_real) * 0.9
+        D_loss_real = torch.nn.functional.binary_cross_entropy_with_logits(Y_real, smooth_label_real)
         D_loss_fake = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
         D_loss_fake_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, torch.zeros_like(Y_fake_e))
 
@@ -435,8 +442,11 @@ class TimeGAN(torch.nn.Module):
         Y_fake = self.discriminator(H_hat, T)  # Output of supervisor
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
 
-        G_loss_U = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.ones_like(Y_fake))
-        G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, torch.ones_like(Y_fake_e))
+        # Using max E[log(D(G(z)))]
+        smooth_labels_L = torch.ones_like(Y_fake) * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))  #
+        smooth_labels_U = torch.ones_like(Y_fake) * 0.9
+        G_loss_U = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, smooth_labels_U)
+        G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, smooth_labels_L)
 
         # 2. Supervised loss
         G_loss_S = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
@@ -573,6 +583,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
     for epoch in logger:
         for X_mb, T_mb in dataloader:
             for _ in range(2):
+                #
                 Z_mb = torch.rand(batch_size, max_seq_len, Z_dim)
                 model.zero_grad()
                 # Generator
@@ -583,7 +594,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
                 g_opt.step()
                 s_opt.step()
 
-                # Embeding
+                # Embedding
                 model.zero_grad()
                 E_loss, _, E_loss_T0 = model(X=X_mb, T=T_mb, Z=Z_mb, obj="autoencoder")
                 E_loss.backward()
@@ -605,12 +616,35 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
         )
 
         writer.add_scalars("Loss/Joint", {"Embedding": E_loss, "Generator": G_loss, "Discriminator": D_loss}, epoch)
+        if (epoch+1) % 10 == 0:
+            # generate synthetic data and plot it
+            Z_mb = torch.rand((9, max_seq_len, Z_dim))
+            X_hat = model(X=None, Z=Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
+            x_axis = np.arange(max_seq_len)
+            fig, axs = plt.subplots(3, 3, figsize=(14, 10))
+
+            for x in range(3):
+                for y in range(3):
+                    axs[x, y].plot(x_axis, X_hat[x * 3 + y].cpu().numpy())
+                    axs[x, y].set_ylim([0, 1])
+                    axs[x, y].set_yticklabels([])
+
+            fig.suptitle(f"Generation: {epoch}", fontsize=14)
+            fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
+            writer.add_figure('Generated data', fig, epoch)
+
+
+
+def load_model(model, model_path):
+    model.load_state_dict(torch.load(model_path))
+    #model.eval()
+    return model
 
 
 def timegan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, max_seq_len, dis_thresh):
     """The training procedure for TimeGAN
     Args:
-        - model (torch.nn.module): The model model that generates synthetic data
+        - model (torch.nn.module): The model that generates synthetic data
         - data (numpy.ndarray): The data for training the model
         - time (numpy.ndarray): The time for the model to be conditioned on
         - args (dict): The model/training configurations
@@ -699,6 +733,21 @@ def timegan_generator(model, T, model_path, device, max_seq_len, Z_dim):
     return generated_data.numpy()
 
 
+def create_sin3(sin1, sin2, temporal=False):
+    sin1, sin2 = np.array(sin1), np.array(sin2)
+    e = 0.7  # temporal information weight
+    seq_len = len(sin1)
+    importance = np.array([e ** i for i in range(seq_len)])
+
+    if temporal:
+        sin3 = []
+        for i in range(1, seq_len + 1):
+            sin3.append(((importance[:i][::-1] * sin1[:i] + importance[:i][::-1] * sin2[:i]) / 2).sum())
+        return sin3
+    else:
+        return [(s1 + s2)/2 for s1, s2 in zip(sin1, sin2)]
+
+
 def sine_data_generation(no, seq_len, dim, temporal=False):
     """Sine data generation.
 
@@ -713,9 +762,6 @@ def sine_data_generation(no, seq_len, dim, temporal=False):
     """
     # Initialize the output
     data = list()
-    e = 0.7  # temporal information weight
-    importance = np.array([e ** i for i in range(1, seq_len)])
-
     # Generate sine data
     for i in range(no):
         # Initialize each time-series
@@ -723,21 +769,15 @@ def sine_data_generation(no, seq_len, dim, temporal=False):
         # For each feature
         for k in range(dim - 1):
             # Randomly drawn frequency and phase
-            freq = np.random.uniform(0.1, 0.5)  # 0.1
-            phase = np.random.uniform(0, 0.5)  # 0.1
+            freq = np.random.uniform(0.05, 0.2)  # 0.1
+            phase = np.random.uniform(0, 3)  # 0.1
 
             # Generate sine signal based on the drawn frequency and phase
             temp_data = [np.sin(freq * j + phase) for j in range(seq_len)]
             temp.append(temp_data)
 
-        if temporal:
-            sin3 = []
-            for i in range(seq_len):
-                sin3.append(((importance[:i][::-1] * temp[0][:i] + importance[:i][::-1] * temp[1][:i]) / 2).sum())
-            temp.append(sin3)
-        else:
-            sine_comb = [(s1 + s2) for s1, s2 in zip(temp[0], temp[1])]  # / 2
-            temp.append(sine_comb)
+        sin3 = create_sin3(temp[0], temp[1], temporal)
+        temp.append(sin3)
         # Align row/column
         temp = torch.tensor(temp).transpose(0, 1)
         # Normalize to [0,1]
@@ -763,6 +803,8 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         self.X_raw = sine_data_generation(num, seq_len, features, temporal=temporal)
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
+        #self.X = torch.tensor(sine_data_generation(num, seq_len, features, temporal=temporal),
+        #                      dtype=torch.float32).clone().detach_()
         self.T = [x.size(0) for x in self.X]
 
     def __len__(self):
@@ -789,7 +831,6 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
 # Commented out IPython magic to ensure Python compatibility.
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 
