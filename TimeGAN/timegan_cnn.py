@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
-"""TimeGAN.ipynb
+"""TimeGAN_cnn.ipynb
 
 """
 
 import torch
 import torch.nn as nn
 import numpy as np
+from tqdm import trange
+
 
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter("runs/TimeGAN")
+writer = SummaryWriter("runs/TimeGAN_CNN")
 
 
 def rnn_weight_init(module):
@@ -71,8 +73,6 @@ class EmbeddingNetwork(nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
             batch_first=True,
-            #dropout=0.5
-            #bidirectional=True
         )
 
         self.emb_linear = nn.Linear(self.hidden_dim, self.hidden_dim)
@@ -90,6 +90,7 @@ class EmbeddingNetwork(nn.Module):
         )
 
         H_o, H_t = self.emb_rnn(X_packed)
+
         H_o, T = nn.utils.rnn.pad_packed_sequence(
             sequence=H_o,
             batch_first=True,
@@ -228,10 +229,24 @@ class GeneratorNetwork(torch.nn.Module):
             batch_first=True,
             #bidirectional=True
         )
-        self.gen_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
+
+        self.gen_conv = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=20, kernel_size=(3, 3), stride=1, bias=True)
+            , nn.ReLU()
+            #, nn.BatchNorm2d(20)
+            , nn.Conv2d(in_channels=20, out_channels=40, kernel_size=(3, 3), stride=2, bias=True)
+            , nn.ReLU()
+            , nn.Conv2d(in_channels=40, out_channels=80, kernel_size=(3, 3), stride=2, bias=True)
+            , nn.ReLU()
+            , nn.Conv2d(in_channels=80, out_channels=100, kernel_size=(1, 1), stride=2, bias=True)
+            , nn.ReLU()
+            , nn.Flatten(start_dim=1)
+            , nn.Linear(14400, self.max_seq_len * self.hidden_dim)
+        )
+
         self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
         rnn_weight_init(self.gen_rnn)
-        linear_weight_init(self.gen_linear)
+        linear_weight_init(self.gen_conv)
 
     def forward(self, Z, T):
         """Takes in random noise (features) and generates synthetic features within the latent space
@@ -241,27 +256,29 @@ class GeneratorNetwork(torch.nn.Module):
         Returns:
             - H: embeddings (B x S x E)
         """
+
         # Dynamic RNN input for ignoring paddings
-        Z_packed = torch.nn.utils.rnn.pack_padded_sequence(
-            input=Z,
-            lengths=T,
-            batch_first=True,
-            enforce_sorted=False
-        )
-
+        #Z_packed = torch.nn.utils.rnn.pack_padded_sequence(
+        #    input=Z,
+        #    lengths=T,
+        #    batch_first=True,
+        #    enforce_sorted=False
+        #)
+        #print("Z:", Z_packed.data.size())
         # 128 x 100 x 71
-        H_o, H_t = self.gen_rnn(Z_packed)
-
+        #H_o, H_t = self.gen_rnn(Z_packed)
+        #print("H_o", H_o.data.size())
         # Pad RNN output back to sequence length
-        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
-            sequence=H_o,
-            batch_first=True,
-            padding_value=self.padding_value,
-            total_length=self.max_seq_len
-        )
-
+        #H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
+        #    sequence=H_o,
+        #    batch_first=True,
+        #    padding_value=self.padding_value,
+        #    total_length=self.max_seq_len
+        #)
+        logits = self.gen_conv(Z.unsqueeze(1))
+        logits = logits.view(-1, self.max_seq_len, self.hidden_dim)
         # 128 x 100 x 10
-        logits = self.gen_linear(H_o)
+        #logits = self.gen_linear(H_o)
         # B x S
         H = self.gen_sigmoid(logits)
         return H
@@ -539,7 +556,6 @@ class TimeGAN(torch.nn.Module):
         return loss
 
 
-from tqdm import trange
 
 
 def embedding_trainer(model, dataloader, e_opt, r_opt, n_epochs):
@@ -632,7 +648,6 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
             fig.suptitle(f"Generation: {epoch}", fontsize=14)
             fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
             writer.add_figure('Generated data', fig, epoch)
-
 
 
 def load_model(model, model_path):

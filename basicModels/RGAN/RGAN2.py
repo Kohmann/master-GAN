@@ -156,7 +156,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
                 with torch.no_grad():  # create some fake data and don't track gradients
                     fake_data = generator(z)
 
-                real_labels = torch.distributions.uniform.Uniform(0.7, 1.0).sample((batchsize,))
+                real_labels = torch.distributions.uniform.Uniform(0.7, 0.95).sample((batchsize,))
                 fake_labels = torch.distributions.uniform.Uniform(0, 0.3).sample((batchsize,))
 
                 real_loss = loss_func(discriminator(real_data).to(device), real_labels.to(device))
@@ -175,7 +175,7 @@ def train(dataloader, discriminator, generator, loss_func, optimizer_d, optimize
             # --------------------------
 
             # real_labels = torch.distributions.uniform.Uniform(0.7, 1.2).sample((batchsize,)) * torch.ones(batchsize)
-            real_labels = torch.distributions.uniform.Uniform(0.7, 1.0).sample((batchsize,))
+            real_labels = torch.distributions.uniform.Uniform(0.7, 0.95).sample((batchsize,))
             fake_data = generator(z)
             loss_g = loss_func(discriminator(fake_data).to(device), real_labels.to(device))
 
@@ -271,4 +271,4 @@ if __name__ == "__main__":
     start_time = time.time()
     train(train_dl, discriminator, generator, nn.BCEWithLogitsLoss(), optimizer_d, optimizer_g, num_epochs=EPOCHS)
     print("Time used: %.5fs" % (time.time() - start_time))
-    create_gif(fp_in="images/sinwave_*.png", fp_out="images/sinewave_generation.gif")
+    create_gif(fp_in="images/sinwave_*.png", fp_out="images/sinewave_generation_multi.gif")
