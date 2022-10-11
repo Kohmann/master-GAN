@@ -7,10 +7,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from torch.utils.tensorboard import SummaryWriter
-
-writer = SummaryWriter("runs/TimeGAN")
-
 
 def rnn_weight_init(module):
     with torch.no_grad():
