@@ -197,7 +197,7 @@ def visualization(ori_data, generated_data, analysis):
         prep_data_final = np.concatenate((prep_data, prep_data_hat), axis=0)
 
         # TSNE anlaysis
-        tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+        tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
         tsne_results = tsne.fit_transform(prep_data_final)
 
         # Plotting
@@ -255,6 +255,6 @@ def modeCollapseEvaluator(ori_data, generated_data):
     SMD = abs(real_mean - fake_mean) / np.sqrt((real_std + fake_std) / 2)
     print("SMD:", SMD)
     if np.all(SMD < 0.03):
-        return True
-    else:
         return False
+    else:
+        return True
