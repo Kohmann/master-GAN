@@ -168,15 +168,6 @@ def visualization(ori_data, generated_data, analysis):
         pca_results = pca.transform(prep_data)
         pca_hat_results = pca.transform(prep_data_hat)
 
-        real_mean = pca_results.mean(axis=0)
-        real_std = pca_results.std(axis=0)
-        fake_mean = pca_hat_results.mean(axis=0)
-        fake_std = pca_hat_results.std(axis=0)
-        # print(real_mean, fake_mean)
-        # print(real_std, fake_std)
-        SMD = abs(real_mean - fake_mean) / np.sqrt((real_std + fake_std) / 2)
-        print("SMD:", SMD)
-
         # Plotting
         f, ax = plt.subplots(1)
         plt.scatter(pca_results[:, 0], pca_results[:, 1],
@@ -247,14 +238,10 @@ def modeCollapseEvaluator(ori_data, generated_data):
     pca_results = pca.transform(prep_data)
     pca_hat_results = pca.transform(prep_data_hat)
 
-    real_mean = pca_results.mean(axis=0)
     real_std = pca_results.std(axis=0)
-    fake_mean = pca_hat_results.mean(axis=0)
     fake_std = pca_hat_results.std(axis=0)
 
-    SMD = abs(real_mean - fake_mean) / np.sqrt((real_std + fake_std) / 2)
-    print("SMD:", SMD)
-    if np.all(SMD < 0.03):
+    if np.all(real_std / fake_std) < 5:
         return False
     else:
         return True
