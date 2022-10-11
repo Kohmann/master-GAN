@@ -742,7 +742,6 @@ def timegan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs,
         dis_thresh=dis_thresh,
         neptune_logger=neptune_logger
     )
-
     # Save model, args, and hyperparameters
     torch.save(model.state_dict(), "model.pt")
     print("Training Complete and Model Saved")
@@ -877,7 +876,9 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
 
+
 def visualization(ori_data, generated_data, analysis):
+
     """Using PCA or tSNE for generated and original data visualization.
 
     Args:
@@ -918,6 +919,15 @@ def visualization(ori_data, generated_data, analysis):
         pca_results = pca.transform(prep_data)
         pca_hat_results = pca.transform(prep_data_hat)
 
+        real_mean = pca_results.mean(axis=0)
+        real_std = pca_results.std(axis=0)
+        fake_mean = pca_hat_results.mean(axis=0)
+        fake_std = pca_hat_results.std(axis=0)
+        #print(real_mean, fake_mean)
+        #print(real_std, fake_std)
+        SMD = abs(real_mean - fake_mean) / np.sqrt((real_std + fake_std) / 2)
+        print("SMD:", SMD)
+
         # Plotting
         f, ax = plt.subplots(1)
         plt.scatter(pca_results[:, 0], pca_results[:, 1],
@@ -929,7 +939,8 @@ def visualization(ori_data, generated_data, analysis):
         plt.title('PCA plot')
         plt.xlabel('x-pca')
         plt.ylabel('y_pca')
-        plt.show()
+        #plt.show()
+        return f
 
     elif analysis == 'tsne':
 
@@ -953,4 +964,5 @@ def visualization(ori_data, generated_data, analysis):
         plt.title('t-SNE plot')
         plt.xlabel('x-tsne')
         plt.ylabel('y_tsne')
-        plt.show()
+        #plt.show()
+        return f
