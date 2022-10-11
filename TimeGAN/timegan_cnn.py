@@ -35,6 +35,16 @@ def linear_weight_init(module):
             elif 'bias' in name:
                 param.data.fill_(0)
 
+def weight_init(module):
+    for m in module:
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, 0, 0.02)
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.normal_(m.weight, 0, 0.02)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.02)
+            nn.init.constant_(m.bias, 0)
 
 class minmaxscaler:
     def __init__(self):
@@ -246,7 +256,7 @@ class GeneratorNetwork(torch.nn.Module):
 
         self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
         rnn_weight_init(self.gen_rnn)
-        linear_weight_init(self.gen_conv)
+        weight_init(self.gen_conv)
 
     def forward(self, Z, T):
         """Takes in random noise (features) and generates synthetic features within the latent space
