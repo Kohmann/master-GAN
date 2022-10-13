@@ -242,7 +242,7 @@ def modeCollapseEvaluator(ori_data, generated_data):
     fake_std = pca_hat_results.std(axis=0)
     print("Real std: ", real_std)
     print("Fake std: ", fake_std)
-    if np.all(real_std / fake_std) < 5:
-        return True
-    else:
+    if np.all(real_std / fake_std) < 2:
         return False
+    else:
+        return True

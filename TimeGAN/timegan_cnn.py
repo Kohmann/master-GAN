@@ -247,7 +247,7 @@ class GeneratorNetwork(torch.nn.Module):
             , nn.BatchNorm2d(100)
             , nn.ReLU()
             , nn.Flatten(start_dim=1)
-            , nn.Linear(2500, 3 * 100)
+            , nn.Linear(2500, self.hidden_dim * 100)
         )
 
         self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]

@@ -210,17 +210,10 @@ class GeneratorNetwork(torch.nn.Module):
         # Generator Architecture
 
         self.gen_conv = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=20, kernel_size=(3, 3), stride=1, bias=True)
-            , nn.ReLU()
-            # , nn.BatchNorm2d(20)
-            , nn.Conv2d(in_channels=20, out_channels=40, kernel_size=(3, 3), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Conv2d(in_channels=40, out_channels=80, kernel_size=(3, 3), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Conv2d(in_channels=80, out_channels=100, kernel_size=(1, 1), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Flatten(start_dim=1)
-            , nn.Linear(14400, self.max_seq_len * self.hidden_dim)
+            nn.Conv1d(in_channels=100, out_channels=100, kernel_size=(6), stride=2, bias=False)
+            , nn.BatchNorm1d(100)
+            , nn.LeakyReLU()
+            , nn.Conv1d(in_channels=100, out_channels=100, kernel_size=(9), stride=2, bias=True)
         )
 
         self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
@@ -235,7 +228,7 @@ class GeneratorNetwork(torch.nn.Module):
             - H: embeddings (B x S x E)
         """
 
-        logits = self.gen_conv(Z.unsqueeze(1))
+        logits = self.gen_conv(Z)
         logits = logits.view(-1, self.max_seq_len, self.hidden_dim)
 
         H = self.gen_sigmoid(logits)
@@ -255,15 +248,14 @@ class DiscriminatorNetwork(torch.nn.Module):
 
         # Discriminator Architecture
         self.dis_cnn = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=20, kernel_size=(1, 3), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Conv2d(in_channels=20, out_channels=40, kernel_size=(3, 3), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Conv2d(in_channels=40, out_channels=80, kernel_size=(3, 3), stride=2, bias=True)
-            , nn.ReLU()
-            , nn.Flatten(start_dim=1)
-            , nn.ReLU()
-            , nn.Linear(880, 1)
+            nn.Conv1d(in_channels=100, out_channels=20, kernel_size=(5), stride=2, bias=False)
+            ,nn.BatchNorm1d(20)
+            ,nn.LeakyReLU()
+            ,nn.Conv1d(in_channels=20, out_channels=40, kernel_size=(7), stride=2, bias=False)
+            ,nn.BatchNorm1d(40)
+            ,nn.LeakyReLU()
+            ,nn.Flatten(start_dim=1)
+            ,nn.Linear(40, 1)
         )
 
         weight_init(self.dis_cnn)
@@ -276,7 +268,7 @@ class DiscriminatorNetwork(torch.nn.Module):
         Returns:
             - logits: predicted logits (B x S x 1)
         """
-        logits = self.dis_cnn(H.unsqueeze(1))
+        logits = self.dis_cnn(H)
         return logits
 
 
