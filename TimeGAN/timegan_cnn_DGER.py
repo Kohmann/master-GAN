@@ -6,7 +6,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import matplotlib.pyplot as plt
+
 from utils import rnn_weight_init, linear_weight_init, weight_init
 
 
@@ -20,37 +20,19 @@ class EmbeddingNetwork(nn.Module):
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
 
-        self.emb_rnn = nn.GRU(
-            input_size=self.feature_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=self.num_layers,
-            batch_first=True,
+        self.emb_conv = nn.Sequential(
+            nn.ConvTranspose1d(in_channels=100, out_channels=100, kernel_size=6, stride=2, bias=False)
+            , nn.BatchNorm1d(100)
+            , nn.LeakyReLU()
+            , nn.ConvTranspose1d(in_channels=100, out_channels=100, kernel_size=2, stride=2, bias=False)
         )
 
-        self.emb_linear = nn.Linear(self.hidden_dim, self.hidden_dim)
-        self.emb_sigmoid = nn.Sigmoid()
-
-        rnn_weight_init(self.emb_rnn)
-        linear_weight_init(self.emb_linear)
+        self.emb_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
+        weight_init(self.emb_conv)
 
     def forward(self, X, T):
-        X_packed = nn.utils.rnn.pack_padded_sequence(
-            input=X,
-            lengths=T,
-            batch_first=True,
-            enforce_sorted=False
-        )
-
-        H_o, H_t = self.emb_rnn(X_packed)
-
-        H_o, T = nn.utils.rnn.pad_packed_sequence(
-            sequence=H_o,
-            batch_first=True,
-            padding_value=self.padding_value,
-            total_length=self.max_seq_len
-        )
-
-        logits = self.emb_linear(H_o)
+        logits = self.emb_conv(X)
+        logits = logits.view(-1, self.max_seq_len, self.hidden_dim)
         H = self.emb_sigmoid(logits)
         return H
 
@@ -67,40 +49,17 @@ class RecoveryNetwork(nn.Module):
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
 
-        self.rec_rnn = nn.GRU(
-            input_size=self.hidden_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=self.num_layers,
-            batch_first=True,
-            bidirectional=False
+        self.rec_cnn = nn.Sequential(
+            nn.Conv1d(in_channels=100, out_channels=100, kernel_size=5, stride=2, bias=False)
+            , nn.BatchNorm1d(100)
+            , nn.LeakyReLU()
+            , nn.Conv1d(in_channels=100, out_channels=100, kernel_size=3, stride=2, bias=True)
         )
 
-        self.rec_linear = torch.nn.Linear(self.hidden_dim, self.feature_dim)
-        rnn_weight_init(self.rec_rnn)
-        linear_weight_init(self.rec_linear)
+        weight_init(self.rec_cnn)
 
     def forward(self, H, T):
-        H_packed = torch.nn.utils.rnn.pack_padded_sequence(
-            input=H,
-            lengths=T,
-            batch_first=True,
-            enforce_sorted=False
-        )
-
-        # 128 x 100 x 10
-        H_o, H_t = self.rec_rnn(H_packed)
-
-        # Pad RNN output back to sequence length
-        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
-            sequence=H_o,
-            batch_first=True,
-            padding_value=self.padding_value,
-            total_length=self.max_seq_len
-        )
-
-        # 128 x 100 x 71
-        X_tilde = self.rec_linear(H_o)
-        return X_tilde
+        return self.rec_cnn(H)
 
 
 class SupervisorNetwork(torch.nn.Module):
@@ -120,7 +79,6 @@ class SupervisorNetwork(torch.nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
             batch_first=True,
-            # bidirectional=True
         )
         self.sup_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
         self.sup_sigmoid = torch.nn.Sigmoid()
@@ -452,3 +410,4 @@ class TimeGAN(torch.nn.Module):
             raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
 
         return loss
+
