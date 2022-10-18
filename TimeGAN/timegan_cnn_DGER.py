@@ -53,13 +53,19 @@ class RecoveryNetwork(nn.Module):
             nn.Conv1d(in_channels=100, out_channels=100, kernel_size=5, stride=2, bias=False)
             , nn.BatchNorm1d(100)
             , nn.LeakyReLU()
-            , nn.Conv1d(in_channels=100, out_channels=100, kernel_size=3, stride=2, bias=True)
+            , nn.Conv1d(in_channels=100, out_channels=100, kernel_size=3, stride=2, bias=False)
+            ,nn.Flatten(start_dim=1)
+            ,nn.BatchNorm1d(300)
+            ,nn.LeakyReLU()
+            ,nn.Linear(self.feature_dim*self.max_seq_len, self.feature_dim*self.max_seq_len)
         )
 
         weight_init(self.rec_cnn)
 
     def forward(self, H, T):
-        return self.rec_cnn(H)
+        output = self.rec_cnn(H)
+        
+        return output.view(-1, self.max_seq_len, self.feature_dim)
 
 
 class SupervisorNetwork(torch.nn.Module):
