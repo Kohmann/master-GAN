@@ -43,6 +43,7 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, neptune_logger=None):
+    fixed_Z_mb = torch.rand((9, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
     for epoch in logger:
         for X_mb, T_mb in dataloader:
@@ -85,8 +86,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
             neptune_logger["train/Joint/Discriminator"].log(D_loss)
             if (epoch + 1) % 10 == 0:
                 # generate synthetic data and plot it
-                Z_mb = torch.rand((9, max_seq_len, Z_dim))
-                X_hat = model(X=None, Z=Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
+                X_hat = model(X=None, Z=fixed_Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
                 x_axis = np.arange(max_seq_len)
                 fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
