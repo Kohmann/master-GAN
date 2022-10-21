@@ -187,7 +187,7 @@ def timegan_generator(model, T, model_path, device, max_seq_len, Z_dim):
     """
     # Load model for inference
 
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
 
     print("\nGenerating Data...", end="")
     # Initialize model to evaluation mode and run without gradients

@@ -37,9 +37,10 @@ class EmbeddingNetwork(nn.Module):
         return H
 
 
+"""
+CNN VERSION
+
 class RecoveryNetwork(nn.Module):
-    """The recovery network (decoder) for TimeGAN
-    """
 
     def __init__(self, feature_dim, hidden_dim, num_layers, padding_value, max_seq_len):
         super().__init__()
@@ -66,6 +67,56 @@ class RecoveryNetwork(nn.Module):
         output = self.rec_cnn(H)
         
         return output.view(-1, self.max_seq_len, self.feature_dim)
+"""
+
+
+# RNN VERSION
+class RecoveryNetwork(nn.Module):
+    """The recovery network (decoder) for TimeGAN
+    """
+
+    def __init__(self, feature_dim, hidden_dim, num_layers, padding_value, max_seq_len):
+        super().__init__()
+        self.feature_dim = feature_dim
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        self.rec_rnn = nn.GRU(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+            bidirectional=False
+        )
+
+        self.rec_linear = torch.nn.Linear(self.hidden_dim, self.feature_dim)
+        rnn_weight_init(self.rec_rnn)
+        linear_weight_init(self.rec_linear)
+
+    def forward(self, H, T):
+        H_packed = torch.nn.utils.rnn.pack_padded_sequence(
+            input=H,
+            lengths=T,
+            batch_first=True,
+            enforce_sorted=False
+        )
+
+        # 128 x 100 x 10
+        H_o, H_t = self.rec_rnn(H_packed)
+
+        # Pad RNN output back to sequence length
+        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
+            sequence=H_o,
+            batch_first=True,
+            padding_value=self.padding_value,
+            total_length=self.max_seq_len
+        )
+
+        # 128 x 100 x 71
+        X_tilde = self.rec_linear(H_o)
+        return X_tilde
 
 
 class SupervisorNetwork(torch.nn.Module):
@@ -416,4 +467,3 @@ class TimeGAN(torch.nn.Module):
             raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
 
         return loss
-
