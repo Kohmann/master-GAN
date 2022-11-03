@@ -20,5 +20,5 @@
 /mnist_data/MNIST/raw/train-labels-idx1-ubyte
 /basicModels/mnist_data/MNIST/raw/train-labels-idx1-ubyte.gz
 /mnist_data/MNIST/raw/train-labels-idx1-ubyte.gz
-
+.idea
 /TimeGAN/.neptune/
