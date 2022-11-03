@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""TimeGAN.ipynb
+"""TimeGAN_cnn.ipynb
 
 """
 
 import torch
 import torch.nn as nn
 import numpy as np
-from utils import rnn_weight_init, linear_weight_init
+import matplotlib.pyplot as plt
+from utils import rnn_weight_init, linear_weight_init, weight_init
 
 
 class EmbeddingNetwork(nn.Module):
@@ -24,8 +25,6 @@ class EmbeddingNetwork(nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
             batch_first=True,
-            #dropout=0.5
-            #bidirectional=True
         )
 
         self.emb_linear = nn.Linear(self.hidden_dim, self.hidden_dim)
@@ -43,6 +42,7 @@ class EmbeddingNetwork(nn.Module):
         )
 
         H_o, H_t = self.emb_rnn(X_packed)
+
         H_o, T = nn.utils.rnn.pad_packed_sequence(
             sequence=H_o,
             batch_first=True,
@@ -110,7 +110,7 @@ class SupervisorNetwork(torch.nn.Module):
     def __init__(self, hidden_dim, num_layers, padding_value, max_seq_len):
         super(SupervisorNetwork, self).__init__()
         self.hidden_dim = hidden_dim
-        self.num_layers = num_layers #- 1 if num_layers > 1 else num_layers
+        self.num_layers = num_layers - 1 if num_layers > 1 else num_layers
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
 
@@ -120,7 +120,7 @@ class SupervisorNetwork(torch.nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
             batch_first=True,
-            #bidirectional=True
+            # bidirectional=True
         )
         self.sup_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
         self.sup_sigmoid = torch.nn.Sigmoid()
@@ -232,16 +232,18 @@ class DiscriminatorNetwork(torch.nn.Module):
         self.max_seq_len = max_seq_len
 
         # Discriminator Architecture
-        self.dis_rnn = torch.nn.GRU(
-            input_size=self.hidden_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=self.num_layers,
-            batch_first=True,
-            bidirectional=True
+        self.dis_cnn = nn.Sequential(
+            nn.Conv1d(in_channels=100, out_channels=20, kernel_size=(5), stride=2, bias=False)
+            , nn.BatchNorm1d(20)
+            , nn.LeakyReLU()
+            , nn.Conv1d(in_channels=20, out_channels=40, kernel_size=(7), stride=2, bias=False)
+            , nn.BatchNorm1d(40)
+            , nn.LeakyReLU()
+            , nn.Flatten(start_dim=1)
+            , nn.Linear(40, 1)
         )
-        self.dis_linear = torch.nn.Linear(self.hidden_dim*2, 1)
-        rnn_weight_init(self.dis_rnn)
-        linear_weight_init(self.dis_linear)
+
+        weight_init(self.dis_cnn)
 
     def forward(self, H, T):
         """Forward pass for predicting if the data is real or synthetic
@@ -251,27 +253,7 @@ class DiscriminatorNetwork(torch.nn.Module):
         Returns:
             - logits: predicted logits (B x S x 1)
         """
-        # Dynamic RNN input for ignoring paddings
-        H_packed = torch.nn.utils.rnn.pack_padded_sequence(
-            input=H,
-            lengths=T,
-            batch_first=True,
-            enforce_sorted=False
-        )
-
-        # 128 x 100 x 10
-        H_o, H_t = self.dis_rnn(H_packed)
-
-        # Pad RNN output back to sequence length
-        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
-            sequence=H_o,
-            batch_first=True,
-            padding_value=self.padding_value,
-            total_length=self.max_seq_len
-        )
-
-        # 128 x 100
-        logits = self.dis_linear(H_o).squeeze(-1)
+        logits = self.dis_cnn(H)
         return logits
 
 
@@ -361,7 +343,7 @@ class TimeGAN(torch.nn.Module):
         Y_fake = self.discriminator(H_hat, T)  # Output of generator + supervisor
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
 
-        smooth_label_real = torch.ones_like(Y_real) # * 0.9
+        smooth_label_real = torch.ones_like(Y_real)  # * 0.9
         D_loss_real = torch.nn.functional.binary_cross_entropy_with_logits(Y_real, smooth_label_real)
         D_loss_fake = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
         D_loss_fake_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, torch.zeros_like(Y_fake_e))
@@ -379,6 +361,7 @@ class TimeGAN(torch.nn.Module):
         Returns:
             - G_loss: the generator's loss
         """
+
         # Supervisor Forward Pass
         H = self.embedder(X, T)
         H_hat_supervise = self.supervisor(H, T)
@@ -386,7 +369,6 @@ class TimeGAN(torch.nn.Module):
         # Generator Forward Pass
         E_hat = self.generator(Z, T)
         H_hat = self.supervisor(E_hat, T)
-
         # Synthetic data generated
         X_hat = self.recovery(H_hat, T)
 
@@ -394,10 +376,9 @@ class TimeGAN(torch.nn.Module):
         # 1. Adversarial loss
         Y_fake = self.discriminator(H_hat, T)  # Output of supervisor
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
-
         # Using max E[log(D(G(z)))]
-        smooth_labels_L = torch.ones_like(Y_fake)# * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))  #
-        smooth_labels_U = torch.ones_like(Y_fake)# * 0.9
+        smooth_labels_L = torch.ones_like(Y_fake)  # * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))
+        smooth_labels_U = torch.ones_like(Y_fake)  # * 0.9
         G_loss_U = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, smooth_labels_U)
         G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, smooth_labels_L)
 
@@ -490,6 +471,3 @@ class TimeGAN(torch.nn.Module):
             raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
 
         return loss
-
-
-
