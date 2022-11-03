@@ -242,6 +242,33 @@ def visualization(ori_data, generated_data, analysis):
         return f
 
 
+def google_data_loading(seq_length):
+    def MinMaxScaler(data):
+        numerator = data - np.min(data, 0)
+        denominator = np.max(data, 0) - np.min(data, 0)
+        return numerator / (denominator + 1e-7)
+
+    x = np.loadtxt('datasets/GOOGLE_BIG.csv', delimiter=",", skiprows=1)[::-1]
+    # x = torch.tensor(x.copy())
+    x = MinMaxScaler(x)
+
+    # Build dataset
+    dataX = []
+
+    # Cut data by sequence length
+    for i in range(0, len(x) - seq_length):
+        _x = x[i:i + seq_length]
+        dataX.append(_x)
+
+    # Mix Data (to make it similar to i.i.d)
+    idx = np.random.permutation(len(dataX))
+
+    outputX = []
+    for i in range(len(dataX)):
+        outputX.append(dataX[idx[i]])
+
+    return torch.tensor(outputX)
+
 def modeCollapseEvaluator(ori_data, generated_data):
     # Analysis sample size (for faster computation)
     anal_sample_no = min([1000, len(ori_data)])

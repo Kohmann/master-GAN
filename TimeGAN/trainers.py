@@ -85,23 +85,24 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
             neptune_logger["train/Joint/Generator"].log(G_loss)
             neptune_logger["train/Joint/Discriminator"].log(D_loss)
             if (epoch + 1) % 10 == 0:
-                # generate synthetic data and plot it
-                X_hat = model(X=None, Z=fixed_Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
-                x_axis = np.arange(max_seq_len)
-                fig, axs = plt.subplots(3, 3, figsize=(14, 10))
+                with torch.no_grad():
+                    # generate synthetic data and plot it
+                    X_hat = model(X=None, Z=fixed_Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
+                    x_axis = np.arange(max_seq_len)
+                    fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
-                for x in range(3):
-                    for y in range(3):
-                        axs[x, y].plot(x_axis, X_hat[x * 3 + y].cpu().numpy())
-                        axs[x, y].set_ylim([0, 1])
-                        axs[x, y].set_yticklabels([])
+                    for x in range(3):
+                        for y in range(3):
+                            axs[x, y].plot(x_axis, X_hat[x * 3 + y].cpu().numpy())
+                            axs[x, y].set_ylim([0, 1])
+                            axs[x, y].set_yticklabels([])
 
-                fig.suptitle(f"Generation: {epoch}", fontsize=14)
-                # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
-                # neptune_logger["generated_image"].upload(fig)
-                neptune_logger["generated_image"].log(fig)
-                plt.close(fig)
-                # writer.add_figure('Generated data', fig, epoch)
+                    fig.suptitle(f"Generation: {epoch}", fontsize=14)
+                    # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
+                    # neptune_logger["generated_image"].upload(fig)
+                    neptune_logger["generated_image"].log(fig)
+                    plt.close(fig)
+                    # writer.add_figure('Generated data', fig, epoch)
 
 
 def timegan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, max_seq_len, dis_thresh,

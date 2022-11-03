@@ -110,7 +110,7 @@ class SupervisorNetwork(torch.nn.Module):
     def __init__(self, hidden_dim, num_layers, padding_value, max_seq_len):
         super(SupervisorNetwork, self).__init__()
         self.hidden_dim = hidden_dim
-        self.num_layers = num_layers - 1 if num_layers > 1 else num_layers
+        self.num_layers = num_layers #- 1 if num_layers > 1 else num_layers
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
 
@@ -237,7 +237,7 @@ class DiscriminatorNetwork(torch.nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=self.num_layers,
             batch_first=True,
-            #bidirectional=True
+            bidirectional=False
         )
         self.dis_linear = torch.nn.Linear(self.hidden_dim, 1)
         rnn_weight_init(self.dis_rnn)
@@ -269,7 +269,6 @@ class DiscriminatorNetwork(torch.nn.Module):
             padding_value=self.padding_value,
             total_length=self.max_seq_len
         )
-
         # 128 x 100
         logits = self.dis_linear(H_o).squeeze(-1)
         return logits
@@ -380,12 +379,18 @@ class TimeGAN(torch.nn.Module):
             - G_loss: the generator's loss
         """
         # Supervisor Forward Pass
+        print("supervisor forward pass")
+        print("X shape: ", X.shape)
         H = self.embedder(X, T)
         H_hat_supervise = self.supervisor(H, T)
+        print("H shape: ", H.shape)
+        print("H_hat_supervise shape: ", H_hat_supervise.shape)
 
         # Generator Forward Pass
         E_hat = self.generator(Z, T)
         H_hat = self.supervisor(E_hat, T)
+        print("E_hat shape: ", E_hat.shape)
+        print("H_hat shape: ", H_hat.shape)
 
         # Synthetic data generated
         X_hat = self.recovery(H_hat, T)
@@ -397,7 +402,7 @@ class TimeGAN(torch.nn.Module):
 
         # Using max E[log(D(G(z)))]
         smooth_labels_L = torch.ones_like(Y_fake)# * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))  #
-        smooth_labels_U = torch.ones_like(Y_fake)# * 0.9
+        smooth_labels_U = torch.ones_like(Y_fake_e)# * 0.9
         G_loss_U = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, smooth_labels_U)
         G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, smooth_labels_L)
 
@@ -490,6 +495,3 @@ class TimeGAN(torch.nn.Module):
             raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
 
         return loss
-
-
-
