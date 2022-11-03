@@ -174,17 +174,16 @@ class GeneratorNetwork(torch.nn.Module):
         self.max_seq_len = max_seq_len
 
         # Generator Architecture
-        self.gen_rnn = torch.nn.GRU(
-            input_size=self.Z_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=self.num_layers,
-            batch_first=True,
-            #bidirectional=True
+
+        self.gen_conv = nn.Sequential(
+            nn.Conv1d(in_channels=100, out_channels=100, kernel_size=(6), stride=2, bias=False)
+            , nn.BatchNorm1d(100)
+            , nn.LeakyReLU()
+            , nn.Conv1d(in_channels=100, out_channels=100, kernel_size=(9), stride=2, bias=True)
         )
-        self.gen_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
+
         self.gen_sigmoid = torch.nn.Sigmoid()  # x in range [0, 1]
-        rnn_weight_init(self.gen_rnn)
-        linear_weight_init(self.gen_linear)
+        weight_init(self.gen_conv)
 
     def forward(self, Z, T):
         """Takes in random noise (features) and generates synthetic features within the latent space
@@ -194,28 +193,10 @@ class GeneratorNetwork(torch.nn.Module):
         Returns:
             - H: embeddings (B x S x E)
         """
-        # Dynamic RNN input for ignoring paddings
-        Z_packed = torch.nn.utils.rnn.pack_padded_sequence(
-            input=Z,
-            lengths=T,
-            batch_first=True,
-            enforce_sorted=False
-        )
 
-        # 128 x 100 x 71
-        H_o, H_t = self.gen_rnn(Z_packed)
+        logits = self.gen_conv(Z)
+        logits = logits.view(-1, self.max_seq_len, self.hidden_dim)
 
-        # Pad RNN output back to sequence length
-        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
-            sequence=H_o,
-            batch_first=True,
-            padding_value=self.padding_value,
-            total_length=self.max_seq_len
-        )
-
-        # 128 x 100 x 10
-        logits = self.gen_linear(H_o)
-        # B x S
         H = self.gen_sigmoid(logits)
         return H
 
@@ -232,18 +213,16 @@ class DiscriminatorNetwork(torch.nn.Module):
         self.max_seq_len = max_seq_len
 
         # Discriminator Architecture
-        self.dis_cnn = nn.Sequential(
-            nn.Conv1d(in_channels=100, out_channels=20, kernel_size=(5), stride=2, bias=False)
-            , nn.BatchNorm1d(20)
-            , nn.LeakyReLU()
-            , nn.Conv1d(in_channels=20, out_channels=40, kernel_size=(7), stride=2, bias=False)
-            , nn.BatchNorm1d(40)
-            , nn.LeakyReLU()
-            , nn.Flatten(start_dim=1)
-            , nn.Linear(40, 1)
+        self.dis_rnn = torch.nn.GRU(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+            #bidirectional=True
         )
-
-        weight_init(self.dis_cnn)
+        self.dis_linear = torch.nn.Linear(self.hidden_dim, 1)
+        rnn_weight_init(self.dis_rnn)
+        linear_weight_init(self.dis_linear)
 
     def forward(self, H, T):
         """Forward pass for predicting if the data is real or synthetic
@@ -253,7 +232,27 @@ class DiscriminatorNetwork(torch.nn.Module):
         Returns:
             - logits: predicted logits (B x S x 1)
         """
-        logits = self.dis_cnn(H)
+        # Dynamic RNN input for ignoring paddings
+        H_packed = torch.nn.utils.rnn.pack_padded_sequence(
+            input=H,
+            lengths=T,
+            batch_first=True,
+            enforce_sorted=False
+        )
+
+        # 128 x 100 x 10
+        H_o, H_t = self.dis_rnn(H_packed)
+
+        # Pad RNN output back to sequence length
+        H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
+            sequence=H_o,
+            batch_first=True,
+            padding_value=self.padding_value,
+            total_length=self.max_seq_len
+        )
+
+        # 128 x 100
+        logits = self.dis_linear(H_o).squeeze(-1)
         return logits
 
 

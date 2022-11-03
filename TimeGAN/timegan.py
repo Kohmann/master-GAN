@@ -110,7 +110,7 @@ class SupervisorNetwork(torch.nn.Module):
     def __init__(self, hidden_dim, num_layers, padding_value, max_seq_len):
         super(SupervisorNetwork, self).__init__()
         self.hidden_dim = hidden_dim
-        self.num_layers = num_layers #- 1 if num_layers > 1 else num_layers
+        self.num_layers = num_layers - 1 if num_layers > 1 else num_layers
         self.padding_value = padding_value
         self.max_seq_len = max_seq_len
 
@@ -269,6 +269,7 @@ class DiscriminatorNetwork(torch.nn.Module):
             padding_value=self.padding_value,
             total_length=self.max_seq_len
         )
+
         # 128 x 100
         logits = self.dis_linear(H_o).squeeze(-1)
         return logits
@@ -379,18 +380,12 @@ class TimeGAN(torch.nn.Module):
             - G_loss: the generator's loss
         """
         # Supervisor Forward Pass
-        print("supervisor forward pass")
-        print("X shape: ", X.shape)
         H = self.embedder(X, T)
         H_hat_supervise = self.supervisor(H, T)
-        print("H shape: ", H.shape)
-        print("H_hat_supervise shape: ", H_hat_supervise.shape)
 
         # Generator Forward Pass
         E_hat = self.generator(Z, T)
         H_hat = self.supervisor(E_hat, T)
-        print("E_hat shape: ", E_hat.shape)
-        print("H_hat shape: ", H_hat.shape)
 
         # Synthetic data generated
         X_hat = self.recovery(H_hat, T)
