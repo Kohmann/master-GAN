@@ -277,10 +277,7 @@ class TimeGAN(torch.nn.Module):
 
         # For Joint training
         H_hat_supervise = self.supervisor(H, T)
-        G_loss_S = torch.nn.functional.mse_loss(
-            H_hat_supervise[:, :-1, :],
-            H[:, 1:, :]
-        )  # Teacher forcing next output
+        G_loss_S = torch.nn.functional.mse_loss(H[:, :-1, :], H_hat_supervise[:, 1:, :])  # Teacher forcing next output
 
         # Reconstruction Loss
         E_loss_T0 = torch.nn.functional.mse_loss(X_tilde, X)
@@ -300,7 +297,7 @@ class TimeGAN(torch.nn.Module):
         H_hat_supervise = self.supervisor(H, T)
 
         # Supervised loss
-        S_loss = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
+        S_loss = torch.nn.functional.mse_loss(H[:, :-1, :], H_hat_supervise[:, 1:, :])  # Teacher forcing next output
         return S_loss
 
     def _discriminator_forward(self, X, T, Z, gamma=1):
@@ -364,7 +361,7 @@ class TimeGAN(torch.nn.Module):
         G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, smooth_labels_L)
 
         # 2. Supervised loss
-        G_loss_S = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
+        G_loss_S = torch.nn.functional.mse_loss(H[:, :-1, :], H_hat_supervise[:, 1:, :])  # Teacher forcing next output
 
         # 3. Two Momments
         G_loss_V1 = torch.mean(torch.abs(

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.nn as nn
+import umap
 
 
 def rnn_weight_init(module):
@@ -275,7 +276,7 @@ def visualization(ori_data, generated_data, analysis):
         # plt.show()
         return f
     elif analysis == 'umap':
-        import umap
+
         prep_data_final = np.concatenate((prep_data, prep_data_hat), axis=0)
         reducer = umap.UMAP()
         embedding = reducer.fit_transform(prep_data_final)
