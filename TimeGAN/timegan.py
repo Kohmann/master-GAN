@@ -361,7 +361,7 @@ class TimeGAN(torch.nn.Module):
         Y_fake = self.discriminator(H_hat, T)  # Output of generator + supervisor
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
 
-        smooth_label_real = torch.ones_like(Y_real) # * 0.9
+        smooth_label_real = torch.ones_like(Y_real)  # * 0.9
         D_loss_real = torch.nn.functional.binary_cross_entropy_with_logits(Y_real, smooth_label_real)
         D_loss_fake = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
         D_loss_fake_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, torch.zeros_like(Y_fake_e))
@@ -396,8 +396,8 @@ class TimeGAN(torch.nn.Module):
         Y_fake_e = self.discriminator(E_hat, T)  # Output of generator
 
         # Using max E[log(D(G(z)))]
-        smooth_labels_L = torch.ones_like(Y_fake)# * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))  #
-        smooth_labels_U = torch.ones_like(Y_fake_e)# * 0.9
+        smooth_labels_L = torch.ones_like(Y_fake)  # * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))
+        smooth_labels_U = torch.ones_like(Y_fake_e)  # * 0.9
         G_loss_U = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake, smooth_labels_U)
         G_loss_U_e = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_e, smooth_labels_L)
 
@@ -405,8 +405,8 @@ class TimeGAN(torch.nn.Module):
         G_loss_S = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
 
         # 3. Two Momments
-        G_loss_V1 = torch.mean(torch.abs(
-            torch.sqrt(X_hat.var(dim=0, unbiased=False) + 1e-6) - torch.sqrt(X.var(dim=0, unbiased=False) + 1e-6)))
+        G_loss_V1 = torch.mean(torch.abs(torch.sqrt(X_hat.var(dim=0, unbiased=False) + 1e-6)
+                                         - torch.sqrt(X.var(dim=0, unbiased=False) + 1e-6)))
         G_loss_V2 = torch.mean(torch.abs((X_hat.mean(dim=0)) - (X.mean(dim=0))))
 
         G_loss_V = G_loss_V1 + G_loss_V2

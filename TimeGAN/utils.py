@@ -3,6 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 import torch.nn as nn
 
+
 def rnn_weight_init(module):
     with torch.no_grad():
         for name, param in module.named_parameters():
@@ -153,6 +154,39 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         return X_mb, T_mb
 
 
+class TimeGANDatasetStocks(torch.utils.data.Dataset):
+    """TimeGAN Dataset for sampling data with their respective time
+    Args:
+        - data (numpy.ndarray): the padded dataset to be fitted (D x S x F)
+        - time (numpy.ndarray): the length of each data (D)
+    Parameters:
+        - x (torch.FloatTensor): the real value features of the data
+        - t (torch.LongTensor): the temporal feature of the data
+    """
+
+    def __init__(self, data):
+        # sanity check
+        self.X = data
+        self.T = [x.size(0) for x in self.X]
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return self.X[idx].float(), self.T[idx]
+
+    def collate_fn(self, batch):
+        """Minibatch sampling
+        """
+        # Pad sequences to max length
+        X_mb = [X for X in batch[0]]
+
+        # The actual length of each data
+        T_mb = [T for T in batch[1]]
+
+        return X_mb, T_mb
+
+
 #######################################################################
 # Visualization
 
@@ -240,34 +274,26 @@ def visualization(ori_data, generated_data, analysis):
         plt.ylabel('y_tsne')
         # plt.show()
         return f
+    elif analysis == 'umap':
+        import umap
+        prep_data_final = np.concatenate((prep_data, prep_data_hat), axis=0)
+        reducer = umap.UMAP()
+        embedding = reducer.fit_transform(prep_data_final)
+        f, ax = plt.subplots(1)
 
+        plt.scatter(embedding[:anal_sample_no, 0], embedding[:anal_sample_no, 1],
+                    c=colors[:anal_sample_no], alpha=0.2, label="Original")
+        plt.scatter(embedding[anal_sample_no:, 0], embedding[anal_sample_no:, 1],
+                    c=colors[anal_sample_no:], alpha=0.2, label="Synthetic")
 
-def google_data_loading(seq_length):
-    def MinMaxScaler(data):
-        numerator = data - np.min(data, 0)
-        denominator = np.max(data, 0) - np.min(data, 0)
-        return numerator / (denominator + 1e-7)
+        ax.legend()
 
-    x = np.loadtxt('datasets/GOOGLE_BIG.csv', delimiter=",", skiprows=1)[::-1]
-    # x = torch.tensor(x.copy())
-    x = MinMaxScaler(x)
+        plt.title('UMAP plot')
+        plt.xlabel('x-umap')
+        plt.ylabel('y_umap')
+        # plt.show()
+        return f
 
-    # Build dataset
-    dataX = []
-
-    # Cut data by sequence length
-    for i in range(0, len(x) - seq_length):
-        _x = x[i:i + seq_length]
-        dataX.append(_x)
-
-    # Mix Data (to make it similar to i.i.d)
-    idx = np.random.permutation(len(dataX))
-
-    outputX = []
-    for i in range(len(dataX)):
-        outputX.append(dataX[idx[i]])
-
-    return torch.tensor(outputX)
 
 def modeCollapseEvaluator(ori_data, generated_data):
     # Analysis sample size (for faster computation)
@@ -307,3 +333,49 @@ def modeCollapseEvaluator(ori_data, generated_data):
         return False
     else:
         return True
+
+
+def log_visualizations(dataset, genereted_data, run):
+    """Logging visualization results"""
+    r = np.array([data[0].numpy() for data in dataset])
+    f_pca = visualization(r, genereted_data, 'pca')
+    run["PCA"].upload(f_pca)
+    plt.close(f_pca)
+
+    f_tsne = visualization(r, genereted_data, 'tsne')
+    run["tsne"].upload(f_tsne)
+    plt.close(f_tsne)
+
+    f_umap = visualization(r, genereted_data, 'umap')
+    run["umap"].upload(f_umap)
+    plt.close(f_umap)
+
+    run["mode_collapse"] = modeCollapseEvaluator(r, genereted_data)
+
+
+def google_data_loading(seq_length):
+    def MinMaxScaler(data):
+        numerator = data - np.min(data, 0)
+        denominator = np.max(data, 0) - np.min(data, 0)
+        return numerator / (denominator + 1e-7)
+
+    x = np.loadtxt('datasets/GOOGLE_BIG.csv', delimiter=",", skiprows=1)[::-1]
+    # x = torch.tensor(x.copy())
+    x = MinMaxScaler(x)
+
+    # Build dataset
+    dataX = []
+
+    # Cut data by sequence length
+    for i in range(0, len(x) - seq_length):
+        _x = x[i:i + seq_length]
+        dataX.append(_x)
+
+    # Mix Data (to make it similar to i.i.d)
+    idx = np.random.permutation(len(dataX))
+
+    outputX = []
+    for i in range(len(dataX)):
+        outputX.append(dataX[idx[i]])
+
+    return torch.tensor(outputX)
