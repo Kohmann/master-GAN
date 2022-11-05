@@ -253,8 +253,8 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
         )
 
         if neptune_logger is not None:
-            neptune_logger["train/Generator"].log(G_loss)
-            neptune_logger["train/Discriminator"].log(D_loss)
+            neptune_logger["train/Joint/Generator"].log(G_loss)
+            neptune_logger["train/Joint/Discriminator"].log(D_loss)
             if (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
