@@ -231,7 +231,7 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
 
             Z_mb = torch.rand(X_mb.size(0), max_seq_len, Z_dim, device=device)
             X_mb = X_mb.to(device)
-            T_mb = T_mb.to(device)
+
 
             # Discriminator
             model.zero_grad()
@@ -258,7 +258,7 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
             if (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
-                    T_mb = torch.tensor([max_seq_len for _ in range(9)], device=device)
+                    T_mb = [max_seq_len for _ in range(9)]
                     X_hat = model.generate(Z=fixed_Z_mb, T=T_mb)
                     x_axis = np.arange(max_seq_len)
                     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
@@ -301,8 +301,7 @@ def rgan_generator(model, T, model_path, device, max_seq_len, Z_dim):
     with torch.no_grad():
         # Generate fake data
         Z = torch.rand((len(T), max_seq_len, Z_dim), device=device)
-        T = T.to(device)
 
-        generated_data = model.generate(Z=Z, T=T)
+        generated_data = model.generate(Z=Z, T=T.cpu())
     print("Done")
-    return generated_data.numpy()
+    return generated_data.cpu().numpy()
