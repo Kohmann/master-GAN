@@ -5,9 +5,7 @@
 
 import torch
 import torch.nn as nn
-import numpy as np
-import matplotlib.pyplot as plt
-from utils import rnn_weight_init, linear_weight_init, weight_init
+from TimeGAN.architectures.weight_inits import rnn_weight_init, linear_weight_init, weight_init
 
 
 class EmbeddingNetwork(nn.Module):
@@ -263,22 +261,27 @@ class TimeGAN(torch.nn.Module):
     - https://github.com/jsyoon0823/TimeGAN
     """
 
-    def __init__(self, feature_dim, hidden_dim, num_layers, padding_value, Z_dim, max_seq_len, batch_size, device):
+    def __init__(self, params):
         super(TimeGAN, self).__init__()
-        self.device = device
-        self.feature_dim = feature_dim
-        self.Z_dim = Z_dim
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.padding_value = padding_value
-        self.max_seq_len = max_seq_len
-        self.batch_size = batch_size
+        self.device = params['device']
+        self.feature_dim = params['feature_dim']
+        self.Z_dim = params['Z_dim']
+        self.hidden_dim = params['hidden_dim']
+        self.num_layers = params['num_layers']
+        self.padding_value = 0.0
+        self.max_seq_len = params['max_seq_len']
+        self.batch_size = params['batch_size']
 
-        self.embedder = EmbeddingNetwork(feature_dim, hidden_dim, num_layers, padding_value, max_seq_len)
-        self.recovery = RecoveryNetwork(feature_dim, hidden_dim, num_layers, padding_value, max_seq_len)
-        self.generator = GeneratorNetwork(Z_dim, hidden_dim, num_layers, padding_value, max_seq_len)
-        self.supervisor = SupervisorNetwork(hidden_dim, num_layers, padding_value, max_seq_len)
-        self.discriminator = DiscriminatorNetwork(hidden_dim, num_layers, padding_value, max_seq_len)
+        # Networks
+        self.embedder = EmbeddingNetwork(self.feature_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                         self.max_seq_len)
+        self.recovery = RecoveryNetwork(self.feature_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                        self.max_seq_len)
+        self.supervisor = SupervisorNetwork(self.hidden_dim, self.num_layers, self.padding_value, self.max_seq_len)
+        self.generator = GeneratorNetwork(self.Z_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                          self.max_seq_len)
+        self.discriminator = DiscriminatorNetwork(self.hidden_dim, self.num_layers, self.padding_value,
+                                                  self.max_seq_len)
 
     def _recovery_forward(self, X, T):
         """The embedding network forward pass and the embedder network loss
