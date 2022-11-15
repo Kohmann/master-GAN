@@ -61,22 +61,26 @@ class minmaxscaler:
         return X * self.denom + self.matrix_min
 
 
-def create_sin3(sin1, sin2, temporal=False):
-    sin1, sin2 = np.array(sin1), np.array(sin2)
-    e = 0.7  # temporal information weight
-    seq_len = len(sin1)
-    importance = np.array([e ** i for i in range(seq_len)])
+def create_sin3(sin1, sin2, alpha, noise):
 
-    if temporal:
+    seq_len = len(sin1)
+    importance = np.array([alpha ** i for i in range(seq_len)])
+
+    if alpha < 1:
         sin3 = []
         for i in range(1, seq_len + 1):
             sin3.append(((importance[:i][::-1] * sin1[:i] + importance[:i][::-1] * sin2[:i]) / 2).sum())
-        return sin3
+        sin3 = np.array(sin3)
     else:
-        return [(s1 + s2) / 2 for s1, s2 in zip(sin1, sin2)]
+        sin3 = (sin1 + sin2) / 2
+
+    if noise > 0:
+        sin3 = np.array(sin3) + np.random.normal(0, noise, seq_len)
+
+    return sin3
 
 
-def sine_data_generation(no, seq_len, dim=3, temporal=False):
+def sine_data_generation(no, seq_len, alpha=0.7, noise=0.0):
     """Sine data generation.
 
     Args:
@@ -93,23 +97,25 @@ def sine_data_generation(no, seq_len, dim=3, temporal=False):
     # Generate sine data
     for i in range(no):
         # Initialize each time-series
-        temp = []
         # For each feature
 
         # Randomly drawn frequency and phase
         freq1 = np.random.uniform(0.05, 0.15)
         phase1 = np.random.uniform(-np.pi / 2, 0)
-        sin1 = np.sin(np.arange(seq_len) * freq1 + phase1).tolist()
+        sin1 = np.sin(np.arange(seq_len) * freq1 + phase1)
 
         freq2 = np.random.uniform(0.3, 0.4)
         phase2 = np.random.uniform(0, np.pi / 2)
-        sin2 = np.sin(np.arange(seq_len) * freq2 + phase2).tolist()
+        sin2 = np.sin(np.arange(seq_len) * freq2 + phase2)
 
-        sin3 = create_sin3(sin1, sin2, temporal)
-        temp.extend([sin1, sin2, sin3])
+        if noise > 0:
+            sin1 = sin1 + np.random.normal(0, noise, seq_len)
+            sin2 = sin2 + np.random.normal(0, noise, seq_len)
 
+        sin3 = create_sin3(sin1, sin2, alpha=alpha, noise=noise)
+        sinuses = np.array([sin1, sin2, sin3])
         # Align row/column
-        temp = torch.tensor(temp).transpose(0, 1)
+        temp = torch.tensor(sinuses).transpose(0, 1)
         # Normalize to [0,1]
         # temp = (temp + 1) * 0.5
         # Stack the generated data
@@ -128,9 +134,9 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         - t (torch.LongTensor): the temporal feature of the data
     """
 
-    def __init__(self, num, seq_len, features, temporal=False):
+    def __init__(self, num, seq_len, alpha, noise):
         # sanity check
-        self.X_raw = sine_data_generation(num, seq_len, features, temporal=temporal)
+        self.X_raw = sine_data_generation(num, seq_len, alpha, noise)
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
         # self.X = torch.tensor(sine_data_generation(num, seq_len, features, temporal=temporal),
