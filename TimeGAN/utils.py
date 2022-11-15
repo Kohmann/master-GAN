@@ -27,7 +27,6 @@ class minmaxscaler:
 
 
 def create_sin3(sin1, sin2, alpha, noise):
-
     seq_len = len(sin1)
     importance = np.array([alpha ** i for i in range(seq_len)])
 
@@ -157,8 +156,6 @@ class TimeGANDatasetStocks(torch.utils.data.Dataset):
         T_mb = [T for T in batch[1]]
 
         return X_mb, T_mb
-
-
 
 
 #######################################################################
@@ -353,3 +350,10 @@ def google_data_loading(seq_length):
         outputX.append(dataX[idx[i]])
 
     return torch.tensor(outputX)
+
+
+def restore_weights(model, run):
+    run["model_checkpoint"].download(destination="models/")
+    model.load_state_dict(torch.load("models/model_checkpoint.pt", map_location="cpu"))
+    run.stop()
+    return model
