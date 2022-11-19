@@ -139,17 +139,24 @@ class Generator(torch.nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, SN=False):
         super(Discriminator, self).__init__()
-        self.model = nn.Sequential(
-            nn.Linear(input_dim, (2 * input_dim) // 3),
-            #nn.utils.parametrizations.spectral_norm(nn.Linear((2 * input_dim) // 3, (2 * input_dim) // 3)),
-            nn.LeakyReLU(0.2),
-            nn.Linear((2 * input_dim) // 3, input_dim // 3),
-            #nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim // 3, input_dim // 3)),
-            nn.LeakyReLU(0.2),
-            nn.Linear(input_dim // 3, 1),
-        )
+        if SN:
+            self.model = nn.Sequential(
+                nn.utils.parametrizations.spectral_norm(nn.Linear((2 * input_dim) // 3, (2 * input_dim) // 3)),
+                nn.LeakyReLU(0.2),
+                nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim // 3, input_dim // 3)),
+                nn.LeakyReLU(0.2),
+                nn.Linear(input_dim // 3, 1),
+            )
+        else:
+            self.model = nn.Sequential(
+                nn.Linear((2 * input_dim) // 3, (2 * input_dim) // 3),
+                nn.LeakyReLU(0.2),
+                nn.Linear(input_dim // 3, input_dim // 3),
+                nn.LeakyReLU(0.2),
+                nn.Linear(input_dim // 3, 1),
+            )
 
     def forward(self, x):
         return self.model(x)
@@ -166,13 +173,14 @@ class RTSGAN(torch.nn.Module):
         self.num_layers = params['num_layers']
         self.max_seq_len = params['max_seq_len']
         self.batch_size = params['batch_size']
+        self.use_spectral_norm = params['spectralnorm']
 
         # Networks
         self.encoder = Encoder(self.feature_dim, self.hidden_dim, self.num_layers, self.max_seq_len)
         self.decoder = Decoder(self.feature_dim, self.hidden_dim, self.num_layers, self.max_seq_len)
         self.generator = Generator(self.Z_dim, self.hidden_dim, self.num_layers)
         disc_input_dim = self.hidden_dim * (self.num_layers + 1)
-        self.discriminator = Discriminator(disc_input_dim)
+        self.discriminator = Discriminator(disc_input_dim, SN=self.use_spectral_norm)
 
         # weights initialization
         #global_weight_init(self.encoder)
@@ -207,21 +215,22 @@ class RTSGAN(torch.nn.Module):
         D_fake = self.discriminator(H_fake)
         # Wasserstein Loss
         loss = torch.mean(D_fake) - torch.mean(D_real)
-
-        # Gradient Penalty
-        alpha = torch.rand(self.batch_size, 1, 1, device=self.device)
-        H_hat = (alpha * H_real + (1 - alpha) * H_fake).requires_grad_(True)
-        D_hat = self.discriminator(H_hat)
-        gradients = torch.autograd.grad(
-            outputs=D_hat,
-            inputs=H_hat,
-            grad_outputs=torch.ones_like(D_hat),
-            create_graph=True,
-            retain_graph=True,
-            only_inputs=True,
-        )[0]
-        gradient_penalty = gamma * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-        loss += gradient_penalty
+        
+        if not self.use_spectral_norm: # if not using spectral normalization
+            # Gradient Penalty
+            alpha = torch.rand(self.batch_size, 1, 1, device=self.device)
+            H_hat = (alpha * H_real + (1 - alpha) * H_fake).requires_grad_(True)
+            D_hat = self.discriminator(H_hat)
+            gradients = torch.autograd.grad(
+                outputs=D_hat,
+                inputs=H_hat,
+                grad_outputs=torch.ones_like(D_hat),
+                create_graph=True,
+                retain_graph=True,
+                only_inputs=True,
+            )[0]
+            gradient_penalty = gamma * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+            loss += gradient_penalty
         return loss
 
     def _generator_forward(self, Z):
