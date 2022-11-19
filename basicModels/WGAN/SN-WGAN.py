@@ -16,7 +16,7 @@ writer = SummaryWriter("runs/WGAN/" + datetime.datetime.now().strftime("%d-%m-%Y
 
 # GLOBAL VARIABLES
 
-device = "cuda" #torch.device("mps" if torch.has_mps else"cpu")
+device = "mps" #torch.device("mps" if torch.has_mps else"cpu")
 
 K = 5  # number of times to train the discriminator
 BATCH_SIZE = 64

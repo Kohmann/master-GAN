@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 def rnn_weight_init(module):
     with torch.no_grad():
         for name, param in module.named_parameters():

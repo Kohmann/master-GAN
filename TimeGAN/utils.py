@@ -357,3 +357,5 @@ def restore_weights(model, run):
     model.load_state_dict(torch.load("models/model_checkpoint.pt", map_location="cpu"))
     run.stop()
     return model
+
+
