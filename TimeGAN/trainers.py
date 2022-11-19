@@ -268,6 +268,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     learning_rate_ae = params["l_rate_ae"]
     n_epochs = params["n_epochs"]
     model_name = params["model_name"]
+    d_steps = params["d_steps"]
 
     # Initialize TimeGAN dataset and dataloader
     dataloader = torch.utils.data.DataLoader(
@@ -285,7 +286,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     decoder_opt = torch.optim.Adam(model.decoder.parameters(), lr=learning_rate_ae)
     # RMSprop is used in the original paper
     gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=learning_rate)
-    disc_opt = torch.optim.RMSprop(model.generator.parameters(), lr=learning_rate)
+    disc_opt = torch.optim.RMSprop(model.discriminator.parameters(), lr=learning_rate)
 
     if not continue_training:
         print("\nStart Embedding Network Training")
@@ -294,7 +295,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
             dataloader=dataloader,
             e_opt=encoder_opt,
             d_opt=decoder_opt,
-            n_epochs=n_epochs,
+            n_epochs=n_epochs//2,
             neptune_logger=neptune_logger
         )
 
@@ -305,7 +306,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
         gen_opt=gen_opt,
         disc_opt=disc_opt,
         n_epochs=n_epochs,
-        d_steps=1,
+        d_steps=d_steps,
         device=device,
         Z_dim=params["Z_dim"],
         neptune_logger=neptune_logger
