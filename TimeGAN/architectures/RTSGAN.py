@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-"""TimeGAN.ipynb
 
-"""
 
 import torch
 import torch.nn as nn
-from TimeGAN.architectures.weight_inits import rnn_weight_init, linear_weight_init
+from architectures.weight_inits import global_weight_init
 
 
 class Encoder(nn.Module):
@@ -26,7 +24,6 @@ class Encoder(nn.Module):
         self.fc1 = nn.Linear(self.hidden_dim * 3, self.hidden_dim)  # [H_mean,H_max,H_last] -> hidden_dim
         self.activation = nn.LeakyReLU(0.2)
         self.fc2 = nn.Linear(self.hidden_dim * self.num_layers, self.hidden_dim * self.num_layers)
-        rnn_weight_init(self.emb_rnn)
 
     def forward(self, X):
         batchsize, max_len, _ = X.size()
@@ -77,7 +74,6 @@ class Decoder(nn.Module):
         )
         self.fc1 = nn.Linear(self.hidden_dim, self.feature_dim)
         self.sigmoid = nn.Sigmoid()
-        rnn_weight_init(self.emb_rnn)
 
     def forward(self, X):
         glob, hidden = X[:, :self.hidden_dim], X[:, self.hidden_dim:]  # decomposing of X = torch.concat[glob, lasth]
@@ -172,6 +168,12 @@ class RTSGAN(torch.nn.Module):
         self.generator = Generator(self.Z_dim, self.hidden_dim, self.num_layers)
         disc_input_dim = self.hidden_dim * (self.num_layers + 1)
         self.discriminator = Discriminator(disc_input_dim)
+
+        # weights initialization
+        #global_weight_init(self.encoder)
+        #global_weight_init(self.decoder)
+        #global_weight_init(self.generator)
+        #global_weight_init(self.discriminator)
 
         # self.generator = GeneratorNetwork(
 
