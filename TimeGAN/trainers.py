@@ -268,6 +268,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     learning_rate_ae = params["l_rate_ae"]
     n_epochs = params["n_epochs"]
     model_name = params["model_name"]
+    d_steps = params["d_steps"]
 
     # Initialize TimeGAN dataset and dataloader
     dataloader = torch.utils.data.DataLoader(
@@ -305,7 +306,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
         gen_opt=gen_opt,
         disc_opt=disc_opt,
         n_epochs=n_epochs,
-        d_steps=1,
+        d_steps=d_steps,
         device=device,
         Z_dim=params["Z_dim"],
         neptune_logger=neptune_logger
