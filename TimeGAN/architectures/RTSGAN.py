@@ -226,7 +226,7 @@ class RTSGAN(torch.nn.Module):
         H_fake = self.generator(Z)
 
         # Synthetic data generated
-        X_hat = self.recovery(H_fake)
+        X_hat = self.decoder(H_fake)
         return X_hat
 
     def forward(self, X, Z, obj):
