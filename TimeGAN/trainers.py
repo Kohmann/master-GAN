@@ -312,8 +312,8 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     )
 
     # Save model, args, and hyperparameters
-    # torch.save(model.state_dict(), model_name)
-    # print(f"Training Complete and {model_name} saved")
+    torch.save(model.state_dict(), model_name)
+    print(f"Training Complete and {model_name} saved")
 
 
 def rtsgan_generator(model, params):

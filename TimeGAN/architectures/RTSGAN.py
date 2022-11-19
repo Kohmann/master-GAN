@@ -248,9 +248,9 @@ class RTSGAN(torch.nn.Module):
                 X = torch.FloatTensor(X)
                 X = X.to(self.device)
 
-        if Z is not None:
-            Z = torch.FloatTensor(Z)
-            Z = Z.to(self.device)
+        #if Z is not None:
+        #    Z = torch.FloatTensor(Z)
+        #    Z = Z.to(self.device)
 
         if obj == "autoencoder":
             # Embedder & Recovery
