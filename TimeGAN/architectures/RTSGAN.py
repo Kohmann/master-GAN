@@ -191,8 +191,9 @@ class RTSGAN(torch.nn.Module):
     def _discriminator_forward(self, X, Z, gamma=10):
 
         H_real = self.encoder(X)
-        H_fake = self.generator(Z)
-
+        with torch.no_grad():
+            H_fake = self.generator(Z)
+        H_fake.requires_grad_(True)
         # Discriminator Loss
         D_real = self.discriminator(H_real)
         D_fake = self.discriminator(H_fake)
@@ -211,14 +212,15 @@ class RTSGAN(torch.nn.Module):
             retain_graph=True,
             only_inputs=True,
         )[0]
-        gradient_penalty = gamma * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-        loss += gradient_penalty
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        loss += gamma * gradient_penalty
         return loss
 
     def _generator_forward(self, Z):
         # Forward Pass
         H_fake = self.generator(Z)
-        D_fake = self.discriminator(H_fake)
+        with torch.no_grad():
+            D_fake = self.discriminator(H_fake)
         # Generator Loss
         loss = -torch.mean(D_fake)
         return loss
