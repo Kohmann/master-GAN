@@ -183,6 +183,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
 
 
 def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
+    n_epochs = 250 if n_epochs > 250 else n_epochs
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
     loss = 0
     for epoch in logger:

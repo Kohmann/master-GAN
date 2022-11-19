@@ -11,6 +11,6 @@ def compare_sin3_generation(fake_data, alpha, noise):
         sins3_fake.append(create_sin3(sin1, sin2, alpha, noise))
     sins3_fake = torch.tensor(sins3_fake)
     sin3_fake_norm = minmaxscaler().fit_transform(sins3_fake)
-    mse_error = ((sin3_fake_norm - sins3_real) ** 2).mean(axis=None)
+    mse_error = ((sin3_fake_norm - sins3_real) ** 2).mean()
     print(f"MSE Error: {mse_error:.5f}")
 
