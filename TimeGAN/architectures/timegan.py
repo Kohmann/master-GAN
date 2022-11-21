@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from TimeGAN.architectures.weight_inits import rnn_weight_init, linear_weight_init
 
+ID = "TimeGAN"
 
 class EmbeddingNetwork(nn.Module):
 

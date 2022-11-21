@@ -12,5 +12,34 @@ def compare_sin3_generation(fake_data, alpha, noise):
     sins3_fake = torch.tensor(sins3_fake)
     sin3_fake_norm = minmaxscaler().fit_transform(sins3_fake)
     mse_error = ((sin3_fake_norm - sins3_real) ** 2).mean()
-    print(f"MSE Error: {mse_error:.5f}")
+    return mse_error
+
+
+from geomloss import SamplesLoss
+def sinkhorn_distance(x,y):
+    """
+    Sinkhorn distance between two samples x and y. Is an approximation of the Wasserstein distance.
+    :param x: torch tensor: samples from the first distribution
+    :param y: torch tensor: samples from the second distribution
+    :return:  wasserstein distance between x and y
+
+    Permisson is granted in LICENSE.txt
+    """
+    # Define a Sinkhorn (~Wasserstein) loss between sampled measures
+    sinkhorn = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
+    return sinkhorn(x, y).detach()
+
+def MMD(x,y):
+    """
+    Maximum Mean Discrepancy between two samples x and y.
+    :param x: torch tensor: samples from the first distribution
+    :param y: torch tensor: samples from the second distribution
+    :return: MMD between x and y
+
+    Permisson is granted in LICENSE.txt
+    """
+    # Define a Sinkhorn (~Wasserstein) loss between sampled measures
+    MMD = SamplesLoss(loss="gaussian", p=2, blur=0.05)
+    return MMD(x, y).detach()
+
 

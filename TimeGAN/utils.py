@@ -88,7 +88,7 @@ def sine_data_generation(no, seq_len, alpha=0.7, noise=0.0):
     return torch.stack(data)
 
 
-class TimeGANDatasetSinus(torch.utils.data.Dataset):
+class DatasetSinus(torch.utils.data.Dataset):
     """TimeGAN Dataset for sampling data with their respective time
     Args:
         - data (numpy.ndarray): the padded dataset to be fitted (D x S x F)
@@ -125,7 +125,7 @@ class TimeGANDatasetSinus(torch.utils.data.Dataset):
         return X_mb, T_mb
 
 
-class TimeGANDatasetStocks(torch.utils.data.Dataset):
+class DatasetStocks(torch.utils.data.Dataset):
     """TimeGAN Dataset for sampling data with their respective time
     Args:
         - data (numpy.ndarray): the padded dataset to be fitted (D x S x F)

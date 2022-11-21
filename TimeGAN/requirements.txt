@@ -3,3 +3,4 @@ torch
 matplotlib
 neptune-client
 umap-learn
+geomloss

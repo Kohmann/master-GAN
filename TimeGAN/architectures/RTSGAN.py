@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from architectures.weight_inits import global_weight_init
 
+ID = "RTSGAN"
+
 def toggle_grad(model, requires_grad):
     for p in model.parameters():
         p.requires_grad_(requires_grad)
@@ -143,17 +145,17 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         if SN:
             self.model = nn.Sequential(
-                nn.utils.parametrizations.spectral_norm(nn.Linear((2 * input_dim) // 3, (2 * input_dim) // 3)),
+                nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, (3 * input_dim) // 4)),
                 nn.LeakyReLU(0.2),
-                nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim // 3, input_dim // 3)),
+                nn.utils.parametrizations.spectral_norm(nn.Linear((3 * input_dim) // 4, input_dim // 4)),
                 nn.LeakyReLU(0.2),
-                nn.Linear(input_dim // 3, 1),
+                nn.Linear(input_dim // 4, 1),
             )
         else:
             self.model = nn.Sequential(
-                nn.Linear((2 * input_dim) // 3, (2 * input_dim) // 3),
+                nn.Linear(input_dim, (2 * input_dim) // 3),
                 nn.LeakyReLU(0.2),
-                nn.Linear(input_dim // 3, input_dim // 3),
+                nn.Linear((2 * input_dim) // 3, input_dim // 3),
                 nn.LeakyReLU(0.2),
                 nn.Linear(input_dim // 3, 1),
             )

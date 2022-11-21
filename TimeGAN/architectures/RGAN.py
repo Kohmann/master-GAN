@@ -1,5 +1,6 @@
 import torch
 
+ID = "RGAN"
 
 class RGANGenerator(torch.nn.Module):
     def __init__(self, args):
