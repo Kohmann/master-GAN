@@ -145,11 +145,11 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         if SN:
             self.model = nn.Sequential(
-                nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, (3 * input_dim) // 4)),
+                nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, (2 * input_dim) // 3)),
                 nn.LeakyReLU(0.2),
-                nn.utils.parametrizations.spectral_norm(nn.Linear((3 * input_dim) // 4, input_dim // 4)),
+                nn.utils.parametrizations.spectral_norm(nn.Linear((2 * input_dim) // 3, input_dim // 3)),
                 nn.LeakyReLU(0.2),
-                nn.Linear(input_dim // 4, 1),
+                nn.Linear(input_dim // 3, 1),
             )
         else:
             self.model = nn.Sequential(

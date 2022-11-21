@@ -226,13 +226,13 @@ def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, 
                 step = 0
 
         logger.set_description(
-            f"Epoch: {epoch}, G: {G_loss:.4f}, D: {D_loss:.4f}"
+            f"Epoch: {epoch}, G: {-G_loss:.4f}, D: {-D_loss:.4f}"
         )
 
         if neptune_logger is not None:
             # neptune_logger["train/Joint/Embedding"].log(E_loss)
-            neptune_logger["train/Joint/Generator"].log(G_loss)
-            neptune_logger["train/Joint/Discriminator"].log(D_loss)
+            neptune_logger["train/Joint/Generator"].log(-G_loss)
+            neptune_logger["train/Joint/Discriminator"].log(-D_loss)
             if (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
@@ -286,8 +286,13 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     encoder_opt = torch.optim.Adam(model.encoder.parameters(), lr=learning_rate_ae)  # betas=(0.9, 0.999) by default
     decoder_opt = torch.optim.Adam(model.decoder.parameters(), lr=learning_rate_ae)
     # RMSprop is used in the original paper
-    gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=learning_rate)
-    disc_opt = torch.optim.RMSprop(model.discriminator.parameters(), lr=learning_rate)
+    if params["optimizer"] == "Adam":
+        gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate)
+        disc_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate)
+    else:
+        print("Using optimizer: RMSprop")
+        gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=learning_rate)
+        disc_opt = torch.optim.RMSprop(model.discriminator.parameters(), lr=learning_rate)
 
     if not continue_training:
         print("\nStart Embedding Network Training")
