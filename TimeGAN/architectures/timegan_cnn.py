@@ -6,7 +6,7 @@ TimeGAN_cnn.ipynb
 import torch
 import torch.nn as nn
 
-from TimeGAN.architectures.weight_inits import rnn_weight_init, linear_weight_init, weight_init
+from weight_inits import rnn_weight_init, linear_weight_init, weight_init
 
 
 class EmbeddingNetwork(nn.Module):

@@ -3,7 +3,6 @@
 
 import torch
 import torch.nn as nn
-from architectures.weight_inits import global_weight_init
 
 ID = "RTSGAN"
 
@@ -184,16 +183,6 @@ class RTSGAN(torch.nn.Module):
         disc_input_dim = self.hidden_dim * (self.num_layers + 1)
         self.discriminator = Discriminator(disc_input_dim, SN=self.use_spectral_norm)
 
-        # weights initialization
-        #global_weight_init(self.encoder)
-        #global_weight_init(self.decoder)
-        #global_weight_init(self.generator)
-        #global_weight_init(self.discriminator)
-
-        # self.generator = GeneratorNetwork(
-
-        # self.discriminator = DiscriminatorNetwork(
-
     def _autoencoder_forward(self, X):
         # Forward Pass
         H = self.encoder(X)
@@ -207,10 +196,11 @@ class RTSGAN(torch.nn.Module):
         toggle_grad(self.generator, False)
         toggle_grad(self.discriminator, True)
 
-        H_real = self.encoder(X)
-        with torch.no_grad():
+        with torch.no_grad(): # turn off gradient calculation for these networks
+            H_real = self.encoder(X)
             H_fake = self.generator(Z)
-        H_fake.requires_grad_()
+        H_fake.requires_grad_(True)
+        H_real.requires_grad_(True)
 
         # Discriminator Loss
         D_real = self.discriminator(H_real)
