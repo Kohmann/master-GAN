@@ -6,9 +6,11 @@ import torch.nn as nn
 
 ID = "RTSGAN"
 
+
 def toggle_grad(model, requires_grad):
     for p in model.parameters():
         p.requires_grad_(requires_grad)
+
 
 class Encoder(nn.Module):
 
@@ -45,10 +47,11 @@ class Encoder(nn.Module):
             total_length=self.max_seq_len
         )
 
-        all_hidden = H_t.view(self.num_layers, -1, batchsize, self.hidden_dim)
+
         H_mean = torch.mean(H_o, dim=1)
         H_max, _ = torch.max(H_o, dim=1)
-        H_last = all_hidden[-1].view(batchsize, -1)  # last hidden state
+        all_hidden = H_t.view(self.num_layers, -1, batchsize, self.hidden_dim)
+        H_last = all_hidden[-1].view(batchsize, -1)  # last H_t state
 
         glob = torch.cat([H_mean, H_max, H_last], dim=-1)
         glob = self.activation(self.fc1(glob))
@@ -196,7 +199,7 @@ class RTSGAN(torch.nn.Module):
         toggle_grad(self.generator, False)
         toggle_grad(self.discriminator, True)
 
-        with torch.no_grad(): # turn off gradient calculation for these networks
+        with torch.no_grad():  # turn off gradient calculation for these networks
             H_real = self.encoder(X)
             H_fake = self.generator(Z)
         H_fake.requires_grad_(True)
@@ -207,8 +210,8 @@ class RTSGAN(torch.nn.Module):
         D_fake = self.discriminator(H_fake)
         # Wasserstein Loss
         loss = torch.mean(D_fake) - torch.mean(D_real)
-        
-        if not self.use_spectral_norm: # if not using spectral normalization
+
+        if not self.use_spectral_norm:  # if not using spectral normalization
             # Gradient Penalty
             alpha = torch.rand(self.batch_size, 1, 1, device=self.device)
             H_hat = (alpha * H_real + (1 - alpha) * H_fake).requires_grad_(True)
@@ -230,7 +233,6 @@ class RTSGAN(torch.nn.Module):
         toggle_grad(self.generator, True)
         toggle_grad(self.discriminator, False)
         H_fake = self.generator(Z)
-
 
         D_fake = self.discriminator(H_fake)
         # Generator Loss
@@ -258,11 +260,11 @@ class RTSGAN(torch.nn.Module):
         """
         if obj != "inference":
             if X is not None:
-                #raise ValueError("`X` should be given")
+                # raise ValueError("`X` should be given")
                 X = torch.FloatTensor(X)
                 X = X.to(self.device)
 
-        #if Z is not None:
+        # if Z is not None:
         #    Z = torch.FloatTensor(Z)
         #    Z = Z.to(self.device)
 

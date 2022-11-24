@@ -38,13 +38,13 @@ def create_sin3(sin1, sin2, alpha, noise):
     else:
         sin3 = (sin1 + sin2) / 2
 
-    if noise > 0:
-        sin3 = np.array(sin3) + np.random.normal(0, noise, seq_len)
+    #if noise > 0:
+    #    sin3 = np.array(sin3) + np.random.normal(0, noise, seq_len)
 
     return sin3
 
 
-def sine_data_generation(no, seq_len, alpha=0.7, noise=0.0):
+def sine_data_generation(no, seq_len, alpha, noise, s1_freq, s2_freq, s1_phase, s2_phase):
     """Sine data generation.
 
     Args:
@@ -64,12 +64,12 @@ def sine_data_generation(no, seq_len, alpha=0.7, noise=0.0):
         # For each feature
 
         # Randomly drawn frequency and phase
-        freq1 = np.random.uniform(0.05, 0.15)
-        phase1 = np.random.uniform(-np.pi / 2, 0)
+        freq1 = np.random.uniform(s1_freq[0], s1_freq[1])
+        phase1 = np.random.uniform(s1_phase[0], s1_phase[1])
         sin1 = np.sin(np.arange(seq_len) * freq1 + phase1)
 
-        freq2 = np.random.uniform(0.3, 0.4)
-        phase2 = np.random.uniform(0, np.pi / 2)
+        freq2 = np.random.uniform(s2_freq[0], s2_freq[1])
+        phase2 = np.random.uniform(s2_phase[0], s2_phase[1])
         sin2 = np.sin(np.arange(seq_len) * freq2 + phase2)
 
         if noise > 0:
@@ -98,9 +98,23 @@ class DatasetSinus(torch.utils.data.Dataset):
         - t (torch.LongTensor): the temporal feature of the data
     """
 
-    def __init__(self, num, seq_len, alpha, noise):
-        # sanity check
-        self.X_raw = sine_data_generation(num, seq_len, alpha, noise)
+    def __init__(self, num, seq_len, alpha, noise, s1_freq=None, s2_freq=None, s1_phase=None, s2_phase=None):
+        """Initialize the dataset
+        Optinal args:
+        s1_freq, s2_freq, s1_phase, s2_phase: list of two floats, [min, max]
+        """
+        # standard sine waves
+        if s1_freq is None:
+            s1_freq = [0.05, 0.15]
+        if s2_freq is None:
+            s2_freq = [0.3, 0.4]
+        if s1_phase is None:
+            s1_phase = [-np.pi / 2, 0]
+        if s2_phase is None:
+            s2_phase = [0, np.pi / 2]
+
+        self.X_raw = sine_data_generation(num, seq_len, alpha, noise,
+                                          s1_freq, s2_freq, s1_phase, s2_phase)
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
         # self.X = torch.tensor(sine_data_generation(num, seq_len, features, temporal=temporal),

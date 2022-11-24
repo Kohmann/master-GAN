@@ -16,7 +16,7 @@ def compare_sin3_generation(fake_data, alpha, noise):
 
 
 from geomloss import SamplesLoss
-def sinkhorn_distance(x,y):
+def sinkhorn_distance(x,y, blur=0.01):
     """
     Sinkhorn distance between two samples x and y. Is an approximation of the Wasserstein distance.
     :param x: torch tensor: samples from the first distribution
@@ -26,7 +26,7 @@ def sinkhorn_distance(x,y):
     Permisson is granted in LICENSE.txt
     """
     # Define a Sinkhorn (~Wasserstein) loss between sampled measures
-    sinkhorn = SamplesLoss(loss="sinkhorn", p=2, blur=0.05)
+    sinkhorn = SamplesLoss(loss="sinkhorn", p=2, blur=0.05, scaling=0.95)
     return sinkhorn(x, y).detach()
 
 def MMD(x,y):
