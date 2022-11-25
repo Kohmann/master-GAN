@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
 
+from metrics import sw_approx
+
 
 def embedding_trainer(model, dataloader, e_opt, r_opt, n_epochs, neptune_logger=None):
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
@@ -42,8 +44,11 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, neptune_logger=None):
-    fixed_Z_mb = torch.rand((9, max_seq_len, Z_dim))
+    x_sw = torch.concat([x for x, _ in dataloader])
+    n_samples = len(x_sw)
+    fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
+
     for epoch in logger:
         for X_mb, T_mb in dataloader:
             for _ in range(2):
@@ -83,10 +88,12 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
             neptune_logger["train/Joint/Embedding"].log(E_loss)
             neptune_logger["train/Joint/Generator"].log(G_loss)
             neptune_logger["train/Joint/Discriminator"].log(D_loss)
+
             if (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
-                    X_hat = model(X=None, Z=fixed_Z_mb, T=[max_seq_len for _ in range(9)], obj="inference")
+                    X_hat = model(X=None, Z=fixed_Z_mb, T=[max_seq_len for _ in range(n_samples)], obj="inference")
+
                     x_axis = np.arange(max_seq_len)
                     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
@@ -100,6 +107,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
                     # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
                     # neptune_logger["generated_image"].upload(fig)
                     neptune_logger["generated_image"].log(fig)
+                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
                     plt.close(fig)
                     # writer.add_figure('Generated data', fig, epoch)
 
@@ -204,8 +212,11 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
 
 def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, device, Z_dim, neptune_logger=None):
     # Wasserstein training
+
+    x_sw = torch.concat([x for x, _ in dataloader])
+    n_samples = len(x_sw)
     logger = trange(n_epochs, desc=f"Epoch: 0, G_loss: 0, D_loss: 0")
-    fixed_Z_mb = torch.randn(9, Z_dim, device=device)
+    fixed_Z_mb = torch.randn(n_samples, Z_dim, device=device)
 
     step = 0
     for epoch in logger:
@@ -250,6 +261,7 @@ def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, 
                     # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
                     # neptune_logger["generated_image"].upload(fig)
                     neptune_logger["generated_image"].log(fig)
+                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
                     plt.close(fig)
 
 
