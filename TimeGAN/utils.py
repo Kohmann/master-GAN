@@ -61,16 +61,17 @@ def sine_data_generation(no, seq_len, alpha, noise, s1_freq, s2_freq, s1_phase, 
     # Generate sine data
     for i in range(no):
         # Initialize each time-series
-        # For each feature
 
+        t = np.linspace(0, 2*np.pi, seq_len)
         # Randomly drawn frequency and phase
+
         freq1 = np.random.uniform(s1_freq[0], s1_freq[1])
         phase1 = np.random.uniform(s1_phase[0], s1_phase[1])
-        sin1 = np.sin(np.arange(seq_len) * freq1 + phase1)
+        sin1 = np.sin(t * freq1 + phase1)
 
         freq2 = np.random.uniform(s2_freq[0], s2_freq[1])
         phase2 = np.random.uniform(s2_phase[0], s2_phase[1])
-        sin2 = np.sin(np.arange(seq_len) * freq2 + phase2)
+        sin2 = np.sin(t * freq2 + phase2)
 
         if noise > 0:
             sin1 = sin1 + np.random.normal(0, noise, seq_len)
@@ -105,13 +106,21 @@ class DatasetSinus(torch.utils.data.Dataset):
         """
         # standard sine waves
         if s1_freq is None:
-            s1_freq = [0.05, 0.15]
+            s1_freq = [1, 3]
+            #s1_freq = [0.05, 0.15]
         if s2_freq is None:
-            s2_freq = [0.3, 0.4]
+            s2_freq = [4, 6]
+            #s2_freq = [0.3, 0.4]
         if s1_phase is None:
-            s1_phase = [-np.pi / 2, 0]
+            s1_phase = [-np.pi, 0]
+            #s1_phase = [-np.pi / 2, 0]
         if s2_phase is None:
-            s2_phase = [0, np.pi / 2]
+            s2_phase = [0, np.pi]
+            #s2_phase = [0, np.pi / 2]
+
+        print(f"sin1 freq:{s1_freq}, phase:{s1_phase}")
+        print(f"sin2 freq:{s2_freq}, phase:{s2_phase}")
+
 
         self.X_raw = sine_data_generation(num, seq_len, alpha, noise,
                                           s1_freq, s2_freq, s1_phase, s2_phase)
