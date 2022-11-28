@@ -44,7 +44,7 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, neptune_logger=None):
-    x_sw = torch.concat([x for x, _ in dataloader])
+    x_sw = torch.concat([x for x, _ in dataloader]) #.detach()
     n_samples = len(x_sw)
     fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
@@ -191,7 +191,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
 
 
 def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
-    n_epochs = 250 if n_epochs > 250 else n_epochs
+    n_epochs = 350 if n_epochs > 350 else n_epochs
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
     loss = 0
     for epoch in logger:
@@ -313,7 +313,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
             dataloader=dataloader,
             e_opt=encoder_opt,
             d_opt=decoder_opt,
-            n_epochs=n_epochs//2,
+            n_epochs=n_epochs,
             neptune_logger=neptune_logger
         )
 
