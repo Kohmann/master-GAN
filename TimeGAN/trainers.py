@@ -191,6 +191,11 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
 
 
 def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
+
+    if True:
+        model.load_ae()
+        return 0
+
     n_epochs = 350 if n_epochs > 350 else n_epochs
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
     loss = 0
@@ -209,6 +214,9 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
         if neptune_logger is not None:
             neptune_logger["train/Autoencoder"].log(loss)
 
+    torch.save(model.encoder.state_dict(), "rtsgan_encoder.pt")
+    torch.save(model.decoder.state_dict(), "rtsgan_decoder.pt")
+    print("Saved autoencoder")
 
 def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, device, Z_dim, neptune_logger=None):
     # Wasserstein training

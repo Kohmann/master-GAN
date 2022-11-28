@@ -186,6 +186,11 @@ class RTSGAN(torch.nn.Module):
         disc_input_dim = self.hidden_dim * (self.num_layers + 1)
         self.discriminator = Discriminator(disc_input_dim, SN=self.use_spectral_norm)
 
+    def load_ae(self):
+        self.encoder.load_state_dict(torch.load("rtsgan_encoder.pt"))
+        self.decoder.load_state_dict(torch.load("rtsgan_decoder.pt"))
+        print("Pretrained autoencoder loaded.")
+
     def _autoencoder_forward(self, X):
         # Forward Pass
         H = self.encoder(X)
