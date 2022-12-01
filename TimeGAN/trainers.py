@@ -192,10 +192,6 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
 
 def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
 
-    if True:
-        model.load_ae()
-        return 0
-
     n_epochs = 350 if n_epochs > 350 else n_epochs
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
     loss = 0
@@ -214,8 +210,8 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
         if neptune_logger is not None:
             neptune_logger["train/Autoencoder"].log(loss)
 
-    torch.save(model.encoder.state_dict(), "rtsgan_encoder.pt")
-    torch.save(model.decoder.state_dict(), "rtsgan_decoder.pt")
+    #torch.save(model.encoder.state_dict(), "rtsgan_encoder.pt")
+    #torch.save(model.decoder.state_dict(), "rtsgan_decoder.pt")
     print("Saved autoencoder")
 
 def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, device, Z_dim, neptune_logger=None):
@@ -256,7 +252,7 @@ def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, 
                 with torch.no_grad():
                     # generate synthetic data and plot it
                     X_hat = model(X=None, Z=fixed_Z_mb, obj="inference")
-                    x_axis = np.arange(X_hat.shape[1])
+                    x_axis = np.arange(X_hat.size(dim=1))
                     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
                     for x in range(3):
@@ -418,6 +414,7 @@ def timegan_generate_data(model, T, max_seq_len, Z_dim):
 def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, max_seq_len, dis_thresh,
                  continue_training=False, neptune_logger=None, model_name="model.pt"):
     """Traniner for RGAN"""
+
 
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,

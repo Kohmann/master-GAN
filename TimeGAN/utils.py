@@ -63,6 +63,7 @@ def sine_data_generation(no, seq_len, alpha, noise, s1_freq, s2_freq, s1_phase, 
         # Initialize each time-series
 
         t = np.linspace(0, 2*np.pi, seq_len)
+        #t = np.arange(seq_len)
         # Randomly drawn frequency and phase
 
         freq1 = np.random.uniform(s1_freq[0], s1_freq[1])
@@ -112,10 +113,10 @@ class DatasetSinus(torch.utils.data.Dataset):
             s2_freq = [4, 6]
             #s2_freq = [0.3, 0.4]
         if s1_phase is None:
-            s1_phase = [-np.pi, 0]
+            s1_phase = [-np.pi/2, 0]
             #s1_phase = [-np.pi / 2, 0]
         if s2_phase is None:
-            s2_phase = [0, np.pi]
+            s2_phase = [0, np.pi/2]
             #s2_phase = [0, np.pi / 2]
 
         print(f"sin1 freq:{s1_freq}, phase:{s1_phase}")
