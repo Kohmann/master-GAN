@@ -151,6 +151,7 @@ def prediction_score(train, val, test, epochs=100, device="cpu", neptune_logger=
         train: training data of shape (n_samples, seq_len, n_features)
         val: validation data
         test: test data
+
     """
 
     # train the LSTM model
