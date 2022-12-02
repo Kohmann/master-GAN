@@ -170,16 +170,30 @@ class RGAN(torch.nn.Module):
     - https://https://github.com/3778/Ward2ICU/
     """
 
-    def __init__(self, args):
+    def __init__(self, params):
         super(RGAN, self).__init__()
-        self.generator = RGANGenerator(args)
-        self.discriminator = RGANDiscriminator(args)
+        self.generator = RGANGenerator(params)
+        self.discriminator = RGANDiscriminator(params)
         self.criterion = torch.nn.BCEWithLogitsLoss()
         self.moments_loss = False
+        
+        self.device = self.device = params['device']
+        self.noise_std = 1
+        self.end_epoch = int(params['n_epochs'] * 0.7)
 
-    def forward(self, X, Z, T, gamma=100):
+    def forward(self, X, Z, T, gamma=100, instance_noise=True):
         # Generate fake data
         X_hat = self.generator(Z, T)
+        
+        if instance_noise:
+            noise = self.noise_std * torch.rand_like(X, device=self.device)
+            X_hat = X_hat + noise
+            noise1 = self.noise_std * torch.rand_like(X, device=self.device)
+            X = X +    noise1
+            self.noise_std -= self.noise_std / self.end_epoch
+            if self.noise_std <= 0:
+                instance_noise = False
+            
 
         # Discriminator prediction over real and fake data
         D_real = self.discriminator(X, T)
