@@ -129,6 +129,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
     max_seq_len = params["max_seq_len"]
     dis_thresh = params["dis_thresh"]
     model_name = params["model_name"]
+    ae_lr = params["l_rate_ae"]
 
     # Initialize TimeGAN dataset and dataloader
     dataloader = torch.utils.data.DataLoader(
@@ -142,8 +143,8 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
     model.to(device)
 
     # Initialize Optimizers
-    e_opt = torch.optim.Adam(model.embedder.parameters(), lr=learning_rate)
-    r_opt = torch.optim.Adam(model.recovery.parameters(), lr=learning_rate)
+    e_opt = torch.optim.Adam(model.embedder.parameters(), lr=ae_lr)
+    r_opt = torch.optim.Adam(model.recovery.parameters(), lr=ae_lr)
     s_opt = torch.optim.Adam(model.supervisor.parameters(), lr=learning_rate)
     g_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate)
     d_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate)
@@ -155,7 +156,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
             dataloader=dataloader,
             e_opt=e_opt,
             r_opt=r_opt,
-            n_epochs=n_epochs,
+            n_epochs= 500 if n_epochs > 500 else n_epochs,
             neptune_logger=neptune_logger
         )
 
@@ -192,6 +193,10 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
 
 def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
 
+    #if True:
+    #    model.load_ae()
+    #    return 0
+
     n_epochs = 350 if n_epochs > 350 else n_epochs
     logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
     loss = 0
@@ -210,8 +215,10 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
         if neptune_logger is not None:
             neptune_logger["train/Autoencoder"].log(loss)
 
-    #torch.save(model.encoder.state_dict(), "rtsgan_encoder.pt")
-    #torch.save(model.decoder.state_dict(), "rtsgan_decoder.pt")
+    inputs, _ = next(iter(dataloader))
+#    "rtsgan_encoder" +str(inputs[1])+ ".pt"
+    torch.save(model.encoder.state_dict(), "rtsgan_encoder" +str(inputs.size()[1])+ ".pt")
+    torch.save(model.decoder.state_dict(), "rtsgan_decoder" +str(inputs.size()[1])+ ".pt")
     print("Saved autoencoder")
 
 def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, device, Z_dim, neptune_logger=None):
@@ -415,7 +422,6 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
                  continue_training=False, neptune_logger=None, model_name="model.pt"):
     """Traniner for RGAN"""
 
-
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=batch_size,
@@ -432,7 +438,11 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
     Z_dim = 100
 
     print("\nStart Training")
-    fixed_Z_mb = torch.rand((9, max_seq_len, Z_dim), device=device)
+    x_sw = torch.concat([x for x, _ in dataloader])
+    n_samples = len(x_sw)
+    fixed_Z_mb = torch.randn(n_samples,max_seq_len, Z_dim, device=device)
+
+    #fixed_Z_mb = torch.rand((9, max_seq_len, Z_dim), device=device)
     logger = trange(n_epochs, desc=f"Epoch: 0, G_loss: 0, D_loss: 0")
     for epoch in logger:
         for X_mb, T_mb in dataloader:
@@ -465,9 +475,8 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
             if (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
-                    T_mb = [max_seq_len for _ in range(9)]
-                    X_hat = model.generate(Z=fixed_Z_mb, T=T_mb)
-                    x_axis = np.arange(max_seq_len)
+                    X_hat = model.generate(Z=fixed_Z_mb, T=[max_seq_len for _ in range(n_samples)])
+                    x_axis = np.arange(X_hat.size(dim=1))
                     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
                     for x in range(3):
@@ -477,11 +486,9 @@ def rgan_trainer(model, dataset, batch_size, device, learning_rate, n_epochs, ma
                             axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
-                    # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
-                    # neptune_logger["generated_image"].upload(fig)
                     neptune_logger["generated_image"].log(fig)
+                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat.cpu()))
                     plt.close(fig)
-                    # writer.add_figure('Generated data', fig, epoch)
 
     # Save model, args, and hyperparameters
     torch.save(model.state_dict(), model_name)
