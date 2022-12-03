@@ -48,6 +48,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
     n_samples = len(x_sw)
     fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
+    best_sw = 1000.0
 
     for epoch in logger:
         for X_mb, T_mb in dataloader:
@@ -107,7 +108,13 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
                     # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
                     # neptune_logger["generated_image"].upload(fig)
                     neptune_logger["generated_image"].log(fig)
-                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
+                    sw = sw_approx(x_sw, X_hat)
+                    neptune_logger["SW"].log(sw)
+                    if sw < best_sw:
+                        m_name = model_name[:-3] + "_checkpoint_best_sw.pt"
+                        torch.save(model.state_dict(), m_name)
+                        run["model_checkpoint_best_sw"].upload(m_name)
+                    
                     plt.close(fig)
                     # writer.add_figure('Generated data', fig, epoch)
 
@@ -166,7 +173,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
             dataloader=dataloader,
             s_opt=s_opt,
             g_opt=g_opt,
-            n_epochs=n_epochs,
+            n_epochs=500 if n_epochs > 500 else n_epochs,
             neptune_logger=neptune_logger
         )
 
@@ -519,3 +526,11 @@ def rgan_generator(model, T, model_path, device, max_seq_len, Z_dim):
         generated_data = model.generate(Z=Z, T=T.cpu())
     print("Done")
     return generated_data.cpu().numpy()
+
+def rgan_generate_data(model, T, max_seq_len, Z_dim):
+
+    model.eval()
+    with torch.no_grad():
+        Z = torch.rand((len(T), max_seq_len, Z_dim))
+        generated_data = model.generate(Z=Z, T=T.cpu())
+    return generated_data.numpy()

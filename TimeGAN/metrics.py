@@ -1,5 +1,6 @@
 from scipy.stats import wasserstein_distance
 import torch
+import torch.nn as nn
 import numpy as np
 from utils import minmaxscaler, create_sin3
 
@@ -121,17 +122,17 @@ class PredictionScoreModel(torch.nn.Module):
         self.linear = torch.nn.Linear(hidden_dim, output_dim)
         self.activation = torch.nn.Sigmoid()
 
-    def forward(self, x, T):
-        # add padding
-        H_packed = torch.nn.utils.rnn.pack_padded_sequence(
-            input=x,
-            lengths=T,
+    def forward(self, X):
+        batchsize, max_len, _ = X.size()
+        X_packed = nn.utils.rnn.pack_padded_sequence(
+            input=X,
+            lengths=torch.ones(batchsize, dtype=torch.int64) * max_len,
             batch_first=True,
             enforce_sorted=False
         )
 
         # 128 x 100 x 10
-        H_o, _ = self.model(H_packed)
+        H_o, _ = self.model(X_packed)
 
         # Pad RNN output back to sequence length
         H_o, T = torch.nn.utils.rnn.pad_packed_sequence(
@@ -155,22 +156,25 @@ def prediction_score(train, val, test, epochs=100, device="cpu", neptune_logger=
     """
 
     # train the LSTM model
-    model = PredictionScoreModel(input_dim=train.shape[2], hidden_dim=20, num_layers=2, output_dim=train.shape[2], max_seq_len=train.size(1))
+    model = PredictionScoreModel(input_dim=train.shape[2], hidden_dim=20, num_layers=2, output_dim=train.shape[2], max_seq_len=train.shape[1])
+    model.to(device)
     train_dataloader = torch.utils.data.DataLoader(train, batch_size=32, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val, batch_size=32, shuffle=True)
 
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    train_loss = []
-    val_loss = []
+    
     early_stopping = EarlyStopping(tolerance=5, min_delta=1e-3)
     logger = trange(epochs, desc=f"Epoch: 0, Train loss: 0, Val loss: 0")
     for epoch in logger:
+        train_loss = []
+        val_loss = []
         for X_mb in train_dataloader:
+            model.zero_grad()
             X_mb = X_mb.to(device)
-            T = torch.tensor([train.shape[1]] * X_mb.size(0))
-            optimizer.zero_grad()
-            y_pred = model(X_mb, T)
+            #T = torch.tensor([train.shape[1]] * X_mb.size(0))
+            #optimizer.zero_grad()
+            y_pred = model(X_mb)
             loss = criterion(y_pred[:, :-1, :], X_mb[:, 1:, :])
             loss.backward()
             optimizer.step()
@@ -178,8 +182,9 @@ def prediction_score(train, val, test, epochs=100, device="cpu", neptune_logger=
 
         for X_mb in val_dataloader:
             X_mb = X_mb.to(device)
-            T = torch.tensor([train.shape[1]] * X_mb.size(0))
-            y_pred = model(X_mb, T)
+            #T = torch.tensor([train.shape[1]] * X_mb.size(0))
+            with torch.no_grad():
+                y_pred = model(X_mb)
             loss = criterion(y_pred[:, :-1, :], X_mb[:, 1:, :])
             val_loss.append(loss.item())
 
@@ -190,6 +195,7 @@ def prediction_score(train, val, test, epochs=100, device="cpu", neptune_logger=
 
         early_stopping(np.mean(train_loss), np.mean(val_loss))
         if early_stopping.early_stop:
+            print(f"Earling stopped at epoch: {epoch}")
             break
 
     # test the LSTM model
@@ -197,8 +203,10 @@ def prediction_score(train, val, test, epochs=100, device="cpu", neptune_logger=
     test_loss = []
     for X_mb in test_dataloader:
         X_mb = X_mb.to(device)
-        T = torch.tensor([train.shape[1]] * X_mb.size(0))
-        y_pred = model(X_mb, T)
+        #T = torch.tensor([train.shape[1]] * X_mb.size(0))
+        with torch.no_grad():
+            y_pred = model(X_mb)
         loss = criterion(y_pred[:, :-1, :], X_mb[:, 1:, :])
         test_loss.append(loss.item())
-    return np.mean(test_loss)
+    print(f"Average Validation MSE: {np.mean(val_loss):.8f}, Average Test MSE: {np.mean(test_loss):.8f} ")
+    return val_loss, test_loss
