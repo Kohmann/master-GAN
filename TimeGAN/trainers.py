@@ -44,11 +44,12 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, neptune_logger=None):
-    x_sw = torch.concat([x for x, _ in dataloader]) #.detach()
+    x_sw = torch.concat([x for x, _ in dataloader])
     n_samples = len(x_sw)
     fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
     best_sw = 1000.0
+    model_name = neptune_logger["parameters/model_name"].fetch()
 
     for epoch in logger:
         for X_mb, T_mb in dataloader:
@@ -113,7 +114,7 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
                     if sw < best_sw:
                         m_name = model_name[:-3] + "_checkpoint_best_sw.pt"
                         torch.save(model.state_dict(), m_name)
-                        run["model_checkpoint_best_sw"].upload(m_name)
+                        neptune_logger["model_checkpoint_best_sw"].upload(m_name)
                     
                     plt.close(fig)
                     # writer.add_figure('Generated data', fig, epoch)
