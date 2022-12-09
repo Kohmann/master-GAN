@@ -223,11 +223,11 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
         if neptune_logger is not None:
             neptune_logger["train/Autoencoder"].log(loss)
 
-    inputs, _ = next(iter(dataloader))
+#    inputs, _ = next(iter(dataloader))
 #    "rtsgan_encoder" +str(inputs[1])+ ".pt"
-    torch.save(model.encoder.state_dict(), "rtsgan_encoder" +str(inputs.size()[1])+ ".pt")
-    torch.save(model.decoder.state_dict(), "rtsgan_decoder" +str(inputs.size()[1])+ ".pt")
-    print("Saved autoencoder")
+#    torch.save(model.encoder.state_dict(), "rtsgan_encoder" +str(inputs.size()[1])+ ".pt")
+#    torch.save(model.decoder.state_dict(), "rtsgan_decoder" +str(inputs.size()[1])+ ".pt")
+#    print("Saved autoencoder")
 
 def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, device, Z_dim, neptune_logger=None):
     # Wasserstein training
@@ -247,7 +247,7 @@ def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, 
             D_loss.backward()
             disc_opt.step()
 
-            if step % d_steps == 0:
+            if d_steps % step  == 0:
                 model.zero_grad()
                 Z = torch.randn(X_mb.shape[0], Z_dim, device=device)
                 G_loss = model(X=None, Z=Z, obj="generator")
@@ -297,6 +297,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     batch_size = params["batch_size"]
     device = params["device"]
     learning_rate = params["l_rate"]
+    l_rate_g = params["l_rate_g"]
     learning_rate_ae = params["l_rate_ae"]
     n_epochs = params["n_epochs"]
     model_name = params["model_name"]
@@ -318,11 +319,11 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     decoder_opt = torch.optim.Adam(model.decoder.parameters(), lr=learning_rate_ae)
     # RMSprop is used in the original paper
     if params["optimizer"] == "Adam":
-        gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate)
+        gen_opt = torch.optim.Adam(model.generator.parameters(), lr=l_rate_g)
         disc_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate)
     else:
         print("Using optimizer: RMSprop")
-        gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=learning_rate)
+        gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=l_rate_g)
         disc_opt = torch.optim.RMSprop(model.discriminator.parameters(), lr=learning_rate)
 
     if not continue_training:
