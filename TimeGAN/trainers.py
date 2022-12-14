@@ -199,7 +199,7 @@ def timegan_trainer(model, dataset, params, neptune_logger=None, continue_traini
     print(f"Training Complete and {model_name} saved")
 
 
-def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptune_logger=None):
+def rtsgan_autoencoder_trainer(model, dataloader, val_dataset, e_opt, d_opt, n_epochs, neptune_logger=None):
 
     #if True:
     #    model.load_ae()
@@ -219,9 +219,13 @@ def rtsgan_autoencoder_trainer(model, dataloader, e_opt, d_opt, n_epochs, neptun
             d_opt.step()
 
         logger.set_description(f"Epoch: {epoch}, Loss: {loss:.4f}")
-
+        
         if neptune_logger is not None:
             neptune_logger["train/Autoencoder"].log(loss)
+            if val_dataset is not None:
+                with torch.no_grad():
+                    reconstruction_loss = model(X=val_dataset[:][0], Z=None, obj="autoencoder")
+                neptune_logger["train/Autoencoder_val"].log(reconstruction_loss.item())
 
 #    inputs, _ = next(iter(dataloader))
 #    "rtsgan_encoder" +str(inputs[1])+ ".pt"
@@ -284,7 +288,7 @@ def rtsgan_gan_trainer(model, dataloader, gen_opt, disc_opt, n_epochs, d_steps, 
                     plt.close(fig)
 
 
-def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_training=False):
+def rtsgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None, continue_training=False):
     """The training procedure for RTS-GAN
     Args:
         - model (torch.nn.module): The model that generates synthetic data
@@ -317,10 +321,12 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
     # Initialize Optimizers
     encoder_opt = torch.optim.Adam(model.encoder.parameters(), lr=learning_rate_ae)  # betas=(0.9, 0.999) by default
     decoder_opt = torch.optim.Adam(model.decoder.parameters(), lr=learning_rate_ae)
+
     # RMSprop is used in the original paper
     if params["optimizer"] == "Adam":
-        gen_opt = torch.optim.Adam(model.generator.parameters(), lr=l_rate_g)
-        disc_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate)
+        gen_opt = torch.optim.Adam(model.generator.parameters(), lr=l_rate_g, betas=(0, 0.999))
+        disc_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate, betas=(0, 0.999))
+        print("Using optimizer: Adam")
     else:
         print("Using optimizer: RMSprop")
         gen_opt = torch.optim.RMSprop(model.generator.parameters(), lr=l_rate_g)
@@ -331,6 +337,7 @@ def rtsgan_trainer(model, dataset, params, neptune_logger=None, continue_trainin
         rtsgan_autoencoder_trainer(
             model=model,
             dataloader=dataloader,
+            val_dataset=val_dataset,
             e_opt=encoder_opt,
             d_opt=decoder_opt,
             n_epochs=n_epochs,
