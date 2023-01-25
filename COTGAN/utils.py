@@ -105,29 +105,20 @@ class DatasetSinus(torch.utils.data.Dataset):
         s1_freq, s2_freq, s1_phase, s2_phase: list of two floats, [min, max]
         """
         # standard sine waves
-        if s1_freq is None:
-            s1_freq = [1, 3]
-            #s1_freq = [0.05, 0.15]
-        if s2_freq is None:
-            s2_freq = [4, 6]
-            #s2_freq = [0.3, 0.4]
-        if s1_phase is None:
-            s1_phase = [-np.pi/2, 0]
-            #s1_phase = [-np.pi / 2, 0]
-        if s2_phase is None:
-            s2_phase = [0, np.pi/2]
-            #s2_phase = [0, np.pi / 2]
+        self.s1_freq = [1, 3] if s1_freq is None else s1_freq
+        self.s2_freq = [4, 6] if s2_freq is None else s2_freq
+        self.s1_phase = [-np.pi/2, 0] if s1_phase is None else s1_phase
+        self.s2_phase = [0, np.pi/2] if s2_phase is None else s2_phase
 
-        print(f"sin1 freq:{s1_freq}, phase:{s1_phase}")
-        print(f"sin2 freq:{s2_freq}, phase:{s2_phase}")
+
+        print(f"sin1 freq:{self.s1_freq}, phase:{self.s1_phase}")
+        print(f"sin2 freq:{self.s2_freq}, phase:{self.s2_phase}")
 
 
         self.X_raw = sine_data_generation(num, seq_len, alpha, noise,
-                                          s1_freq, s2_freq, s1_phase, s2_phase)
+                                          self.s1_freq, self.s2_freq, self.s1_phase, self.s2_phase)
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
-        # self.X = torch.tensor(sine_data_generation(num, seq_len, features, temporal=temporal),
-        #                      dtype=torch.float32).clone().detach_()
         self.T = [x.size(0) for x in self.X]
 
     def __len__(self):
