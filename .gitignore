@@ -22,3 +22,5 @@
 /mnist_data/MNIST/raw/train-labels-idx1-ubyte.gz
 .idea
 /TimeGAN/.neptune/
+/COTGAN/.neptune/
+/notes/GANs/.obsidian/

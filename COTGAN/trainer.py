@@ -31,7 +31,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
 
     # Optimizers
-    beta1, beta2 = (0.5, 0.9) # TODO(Add beta1 and beta2 to params) # betas=(0.9, 0.999) by default
+    beta1, beta2 = (params["beta1"], params["beta2"])
     disc_h_opt = torch.optim.Adam(model.discriminator_h.parameters(), lr=learning_rate, betas=(beta1, beta2))
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate, betas=(beta1, beta2))
@@ -90,6 +90,5 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                     neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
                     plt.close(fig)
 
-
-
-    return 0
+    # save model
+    torch.save(model.state_dict(), f"./models/{model_name}.pt")
