@@ -1,177 +1,182 @@
 import torch
 import torchvision.transforms as transforms
-import torchvision
 import torch.nn as nn
-import torch.nn.functional as F
+
+from cost_utils import *
+
+class sinusDiscriminator(nn.Module):
+    def __init__(self, args):
+        super(sinusDiscriminator, self).__init__()
+        # Basic parameters
+        self.device = args["device"]
+
+        self.hidden_dim = args["hidden_dim"]
+        self.rnn_hidden_dim = args["rnn_hidden_dim"]
+        self.feature_dim = args["feature_dim"]
+        self.num_layers = args["num_layers"]
+        self.max_seq_len = args["max_seq_len"]
+
+        # Discriminator Architecture
+        self.dis_cnn = nn.Sequential(
+            nn.Conv1d(  in_channels=self.feature_dim,
+                        out_channels=self.hidden_dim,
+                        kernel_size=5,
+                        stride=1,),
+            nn.ReLU(),
+            nn.Conv1d(  in_channels=self.hidden_dim,
+                        out_channels=self.hidden_dim,
+                        kernel_size=5,
+                        stride=1,),
+            nn.ReLU(),
+        )
+
+        self.dis_rnn = nn.GRU(  input_size=self.hidden_dim,
+                                hidden_size=self.feature_dim,
+                                num_layers=self.num_layers,
+                                batch_first=True)
 
 
-class VideoDCD(nn.Module):
-    '''
-    Discriminator for H or M
-    Args:
-        inputs: (numpy array) real time series data (x_1, x_2,...,x_T) and fake samples (y_1, y_2,...,y_T) as inputs
-        to the model has shape [batch_size, x_height, x_weight*time_step, channel]
-    Returns:
-        outputs: h or M of shape [batch_size, time_step, J]
-    '''
+    def forward(self, x):
+        # x: B x S x F
+        x = x.permute(0, 2, 1) # B x F x S
+        x = self.dis_cnn(x)
+        x = x.permute(0, 2, 1) # B x S x F
+        H, H_t = self.dis_rnn(x)
+        logits = torch.sigmoid(H)
 
-    def __init__(self, batch_size, time_steps, x_h=64, x_w=64, filter_size=128, j=16, nchannel=1, bn=False):
-        super(VideoDCD, self).__init__()
+        return logits
 
-        self.batch_size = batch_size
-        self.time_steps = time_steps
-        self.filter_size = filter_size
-        self.nchannel = nchannel
-        self.ks = 6
-        # j is the dimension of h and M
-        self.j = j
-        self.bn = bn
-        self.x_height = x_h
-        self.x_width = x_w
+class simpleGenerator(nn.Module):
+    def __init__(self,input_size,  args):
+        super(simpleGenerator, self).__init__()
+        # Basic parameters
+        self.device = args["device"]
+        self.Z_dim = args["Z_dim"]
+        self.hidden_dim = args["hidden_dim"]
+        self.rnn_hidden_dim = args["rnn_hidden_dim"]
+        self.feature_dim = args["feature_dim"]
+        self.num_layers = args["num_layers"]
+        self.max_seq_len = args["max_seq_len"]
 
-        h_in = 8
-        s = 2
-        p = self.compute_padding(h_in, s, self.ks)
+        # Generator Architecture
+        self.gen_rnn = nn.GRU(input_size=input_size,
+                             hidden_size=self.rnn_hidden_dim,
+                             num_layers=self.num_layers,
+                             batch_first=True)
 
-        conv_layers = [nn.Conv2d(self.nchannel, self.filter_size, kernel_size=[self.ks, self.ks],
-                                 stride=[s, s], padding=[p, p])]
-        if self.bn:
-            conv_layers.append(nn.BatchNorm2d(self.filter_size))
-        conv_layers.append(nn.LeakyReLU())
-        conv_layers.append(nn.Conv2d(self.filter_size, self.filter_size * 2, kernel_size=[self.ks, self.ks],
-                                     stride=[s, s], padding=[p, p]))
-        if self.bn:
-            conv_layers.append(nn.BatchNorm2d(self.filter_size * 2))
-        conv_layers.append(nn.LeakyReLU())
-        conv_layers.append(nn.Conv2d(self.filter_size * 2, self.filter_size * 4, kernel_size=[self.ks, self.ks],
-                                     stride=[s, s], padding=[p, p]))
-        if self.bn:
-            conv_layers.append(nn.BatchNorm2d(self.filter_size * 4))
-        conv_layers.append(nn.LeakyReLU())
+        self.gen_FC = nn.Sequential(
+            nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(self.hidden_dim, self.feature_dim)
+        )
 
-        self.conv_net = nn.Sequential(*conv_layers)
+    def forward(self, x):
+        # (B x S x Z)
+        print(x.shape)
+        H, H_t = self.gen_rnn(x)
+        print("H.shape", H.shape)
+        # B x F
+        H = H.squeeze(-1)
+        # B x F
+        logits = self.gen_FC(H)
 
-        self.lstm1 = nn.LSTM(self.filter_size * 4 * 8 * 8, self.filter_size * 4, batch_first=True)
-        self.lstmbn = nn.BatchNorm1d(self.filter_size * 4)
-        self.lstm2 = nn.LSTM(self.filter_size * 4, self.j, batch_first=True)
-        # self.sig = nn.Sigmoid()
-
-    # padding computation when h_in = 2h_out
-    def compute_padding(self, h_in, s, k_size):
-        return max((h_in * (s - 2) - s + k_size) // 2, 0)
-
-    def forward(self, inputs):
-        x = inputs.reshape(self.batch_size * self.time_steps, self.nchannel, self.x_height, self.x_width)
-        x = self.conv_net(x)
-        x = x.reshape(self.batch_size, self.time_steps, -1)
-        # first output dimension is the sequence of h_t.
-        # second output is h_T and c_T(last cell state at t=T).
-        x, _ = self.lstm1(x)
-        x = x.permute(0, 2, 1)
-        if self.bn:
-            x = self.lstmbn(x)
-        x = x.permute(0, 2, 1)
-        x, _ = self.lstm2(x)
-        # x = self.sig(x)
-        return x
+        return logits
 
 
-class VideoDCG(nn.Module):
-    '''
-    Discriminator for H or M
-    Args:
-        inputs: (numpy array) real time series data (x_1, x_2,...,x_T) and fake samples (y_1, y_2,...,y_T) as inputs
-        to the model has shape [batch_size, x_height, x_weight*time_step, channel]
-    Returns:
-        outputs: h or M of shape [batch_size, time_step, J]
-    '''
+class COTGAN(nn.Module):
+    def __init__(self, args):
+        super(COTGAN, self).__init__()
+        # Basic parameters
+        self.device = args["device"]
+        self.Z_dim = args["Z_dim"]
+        self.hidden_dim = args["hidden_dim"]
+        self.rnn_hidden_dim = args["rnn_hidden_dim"]
+        self.feature_dim = args["feature_dim"]
+        self.num_layers = args["num_layers"]
+        self.max_seq_len = args["max_seq_len"]
 
-    def __init__(self, batch_size=8, time_steps=32, x_h=64, x_w=64, filter_size=32, state_size=32, nchannel=1, z_dim=25,
-                 y_dim=20, bn=False, output_act='sigmoid'):
-        super(VideoDCG, self).__init__()
+        self.generator = simpleGenerator(input_size=self.Z_dim, args=args)
+        self.discriminator_h = sinusDiscriminator(args=args)
+        self.discriminator_m = sinusDiscriminator(args=args)
 
-        self.batch_size = batch_size
-        self.time_steps = time_steps
-        self.filter_size = filter_size
-        self.state_size = state_size
-        self.nchannel = nchannel
-        self.n_noise_t = z_dim
-        self.n_noise_y = y_dim
-        self.x_height = x_h
-        self.x_width = x_w
-        self.bn = bn
-        self.output_activation = output_act
+    def __discriminator_loss(self, real_data, real_data_p, z1, z2):
+        fake_data = self.generator(z1)
+        fake_data_p = self.generator(z2)
 
-        self.lstm1 = nn.LSTM(self.n_noise_t + self.n_noise_y, self.state_size, batch_first=True)
-        self.lstmbn1 = nn.BatchNorm1d(self.state_size)
-        self.lstm2 = nn.LSTM(self.state_size, self.state_size * 2, batch_first=True)
-        self.lstmbn2 = nn.BatchNorm1d(self.state_size * 2)
+        # h_real = self.discriminator_h(real_data)
+        h_fake = self.discriminator_h(fake_data)
 
-        dense_layers = [nn.Linear(self.state_size * 2, 8 * 8 * self.filter_size * 4)]
-        if self.bn:
-            dense_layers.append(nn.BatchNorm1d(8 * 8 * self.filter_size * 4))
-        dense_layers.append(nn.LeakyReLU())
+        m_real = self.discriminator_m(real_data)
+        m_fake = self.discriminator_m(fake_data)
 
-        self.dense_net = nn.Sequential(*dense_layers)
+        h_real_p = self.discriminator_h(real_data_p)
+        h_fake_p = self.discriminator_h(fake_data_p)
 
-        h_in = 8
-        s = 2
-        k_size = 6
-        p = self.compute_padding(h_in, s, k_size)
+        m_real_p = self.discriminator_m(real_data_p)
+        # m_fake_p = self.discriminator_m(fake_data_p)
 
-        deconv_layers = [nn.ConvTranspose2d(self.filter_size * 4, self.filter_size * 4, kernel_size=[k_size, k_size],
-                                            stride=[s, s], padding=[p, p])]
+        # TODO(add 'scaling_coef, 'sinkhorn_eps', 'sinkhorn_l' to arg dictionary)
+        scaling_coef = 1
+        sinkhorn_eps = 0.1
+        sinkhorn_l = 5
 
-        if self.bn:
-            deconv_layers.append(nn.BatchNorm2d(self.filter_size * 4))
-        deconv_layers.append(nn.LeakyReLU())
+        mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data,   fake_data,   m_real,   m_fake,   h_fake, 10, 0.1,
+                                                          real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p)
 
-        deconv_layers.append(nn.ConvTranspose2d(self.filter_size * 4, self.filter_size * 2,
-                                                kernel_size=[k_size, k_size], stride=[s, s], padding=[p, p]))
+        '''
+        def compute_mixed_sinkhorn_loss(f_real,   f_fake,   m_real,   m_fake,   h_fake, sinkhorn_eps, sinkhorn_l,
+                                        f_real_p, f_fake_p, m_real_p, h_real_p, h_fake_p, scale=False):
+            
+            :param x and x'(f_real, f_real_p): real data of shape [batch size, time steps, features]
+            :param y and y'(f_fake, f_fake_p): fake data of shape [batch size, time steps, features]
+            :param h and h'(h_real, h_fake): h(y) of shape [batch size, time steps, J]
+            :param m and m'(m_real and m_fake): M(x) of shape [batch size, time steps, J]
+            :param scaling_coef: a scaling coefficient
+            :param sinkhorn_eps: Sinkhorn parameter - epsilon
+            :param sinkhorn_l: Sinkhorn parameter - the number of iterations
+            :return: final Sinkhorn loss(and actual number of sinkhorn iterations for monitoring the training process)
+        '''
+        pm = scale_invariante_martingale_regularization(m_real, reg_lam=0.4) # TODO(add 'reg_lam' to arg dictionary)
+        scaling_coef = 1 # TODO(add 'scaling_coef' to arg dictionary)
 
-        if self.bn:
-            deconv_layers.append(nn.BatchNorm2d(self.filter_size * 2))
-        deconv_layers.append(nn.LeakyReLU())
+        return -mixed_sinkhorn_loss + pm
 
-        deconv_layers.append(nn.ConvTranspose2d(self.filter_size * 2, self.filter_size,
-                                                kernel_size=[6, 6], stride=[2, 2], padding=[p, p]))
-        if self.bn:
-            deconv_layers.append(nn.BatchNorm2d(self.filter_size))
-        deconv_layers.append(nn.LeakyReLU())
 
-        deconv_layers.append(nn.ConvTranspose2d(self.filter_size, self.nchannel, kernel_size=[5, 5],
-                                                stride=[1, 1], padding=[2, 2]))
 
-        if self.output_activation == 'sigmoid':
-            deconv_layers.append(nn.Sigmoid())
-        elif self.output_activation == 'tanh':
-            deconv_layers.append(nn.Tanh())
+    def __generator_loss(self, z1, z2):
+        return z1
+
+    def forward(self, x1, x2, z1, z2, obj):
+        if obj == "generator":
+            loss = self.__generator_loss(z1, z2)
+            return loss
+        elif obj == "discriminator":
+            loss = self.__discriminator_loss(x1, x2, z1, z2)
+            return loss
+        elif obj == "inference":
+            X_hat = self.generator(z1, z2)
+            return X_hat.cpu().detach()
         else:
-            deconv_layers = deconv_layers
+            raise ValueError("Invalid obj description. Must be in (generator, discriminator, inference)")
 
-        self.deconv_net = nn.Sequential(*deconv_layers)
 
-    # padding computation when 2h_in = h_out
-    def compute_padding(self, h_in, s, k_size):
-        return max((h_in * (s - 2) - s + k_size) // 2, 0)
+if __name__ == "__main__":
 
-    def forward(self, z, y):
-        z = z.reshape(self.batch_size, self.time_steps, self.n_noise_t)
-        y = y[:, None, :].expand(self.batch_size, self.time_steps, self.n_noise_y)
-        x = torch.cat([z, y], -1)
-        x, _ = self.lstm1(x)
-        x = x.permute(0, 2, 1)
-        if self.bn:
-            x = self.lstmbn1(x)
-        x = x.permute(0, 2, 1)
-        x, _ = self.lstm2(x)
-        x = x.permute(0, 2, 1)
-        if self.bn:
-            x = self.lstmbn2(x)
-        x = x.permute(0, 2, 1)
-        x = x.reshape(self.batch_size * self.time_steps, -1)
-        x = self.dense_net(x)
-        x = x.reshape(self.batch_size * self.time_steps, self.filter_size * 4, 8, 8)
-        x = self.deconv_net(x)
-        x = x.reshape(self.batch_size, self.time_steps, self.x_height, self.x_width)
-        return x
+    x = torch.randn(16, 100, 5)
+    z = torch.randn(16, 100, 100)
+
+    args = {
+        "device": "cpu",
+        "hidden_dim": 64,
+        "rnn_hidden_dim": 64,
+        "feature_dim": x.size(-1),
+        "num_layers": 1,
+        "max_seq_len": x.size(1),
+        "Z_dim": z.size(-1)
+    }
+
+    input_size = 100
+    gen = simpleGenerator(input_size, args)
+    dis = sinusDiscriminator(args)
+    print(gen(z).size())
+    print(dis(x).size())

@@ -19,6 +19,7 @@ def cost_matrix(x, y, p=2):
 
 def modified_cost(x, y, h, M):
     """
+    Equation (3.9) in COT-GAN paper
     :param x: a tensor of shape [batch_size, time steps, features]
     :param y: a tensor of shape [batch_size, time steps, features]
     :param h: a tensor of shape [batch size, time steps, J]
@@ -37,7 +38,7 @@ def modified_cost(x, y, h, M):
     C_hM = torch.sum(sum_over_j, -1) / time_steps
 
     # Compute L2 cost $\sum_t^T |x^i_t - y^j_t|^2$
-    cost_xy = cost_matrix(x, y)
+    cost_xy = cost_matrix(x, y) # c(x,y)
 
     return cost_xy + C_hM
 
@@ -104,7 +105,7 @@ def compute_sinkhorn(x, y, h, M, epsilon=0.1, niter=10):
 
 def scale_invariante_martingale_regularization(M, reg_lam):
     '''
-    Compute the regularization for the martingale condition (i.e. p_M).
+    Compute the regularization for the martingale condition (i.e. p_M). Between equation (3.9) and (3.10) in paper
     :param M: a tensor of shape (batch_size, sequence length), the output of an RNN applied to X
     :param reg_lam: scale parameter for first term in pM
     :return: A rank 0 tensors (i.e. scalers)
@@ -128,7 +129,7 @@ def scale_invariante_martingale_regularization(M, reg_lam):
 
 def compute_mixed_sinkhorn_loss(f_real, f_fake, m_real, m_fake, h_fake, sinkhorn_eps, sinkhorn_l,
                                 f_real_p, f_fake_p, m_real_p, h_real_p, h_fake_p, scale=False):
-    '''
+    """
     :param x and x'(f_real, f_real_p): real data of shape [batch size, time steps, features]
     :param y and y'(f_fake, f_fake_p): fake data of shape [batch size, time steps, features]
     :param h and h'(h_real, h_fake): h(y) of shape [batch size, time steps, J]
@@ -137,7 +138,7 @@ def compute_mixed_sinkhorn_loss(f_real, f_fake, m_real, m_fake, h_fake, sinkhorn
     :param sinkhorn_eps: Sinkhorn parameter - epsilon
     :param sinkhorn_l: Sinkhorn parameter - the number of iterations
     :return: final Sinkhorn loss(and actual number of sinkhorn iterations for monitoring the training process)
-    '''
+    """
     f_real = f_real.reshape(f_real.shape[0], f_real.shape[1], -1)
     f_fake = f_fake.reshape(f_fake.shape[0], f_fake.shape[1], -1)
     f_real_p = f_real_p.reshape(f_real_p.shape[0], f_real_p.shape[1], -1)
