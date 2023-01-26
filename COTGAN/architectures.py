@@ -1,5 +1,3 @@
-import torch
-import torchvision.transforms as transforms
 import torch.nn as nn
 
 from cost_utils import *
@@ -109,10 +107,6 @@ class COTGAN(nn.Module):
         m_real_p = self.discriminator_m(real_data_p)
         # m_fake_p = self.discriminator_m(fake_data_p)
 
-        # scaling_coef = 1
-        self.sinkhorn_eps = 0.1  # epsilon
-        self.sinkhorn_l = 10  # iterations
-
         mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
                                                           real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
                                                           self.sinkhorn_eps, self.sinkhorn_l)
@@ -136,10 +130,6 @@ class COTGAN(nn.Module):
 
         m_real_p = self.discriminator_m(real_data_p)
         # m_fake_p = self.discriminator_m(fake_data_p)
-
-        # scaling_coef = 1
-        self.sinkhorn_eps = 0.1  # epsilon
-        self.sinkhorn_l = 10  # iterations
 
         mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
                                                           real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
