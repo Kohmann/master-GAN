@@ -109,14 +109,13 @@ class COTGAN(nn.Module):
         m_real_p = self.discriminator_m(real_data_p)
         # m_fake_p = self.discriminator_m(fake_data_p)
 
-        # TODO(add 'scaling_coef, 'sinkhorn_eps', 'sinkhorn_l' to arg dictionary)
         # scaling_coef = 1
-        sinkhorn_eps = 0.1 # epsilon
-        sinkhorn_l = 5 # iterations
+        self.sinkhorn_eps = 0.1  # epsilon
+        self.sinkhorn_l = 10  # iterations
 
-        mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data,   fake_data,   m_real,   m_fake,   h_fake,
+        mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
                                                           real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
-                                                          sinkhorn_eps, sinkhorn_l)
+                                                          self.sinkhorn_eps, self.sinkhorn_l)
 
         pm = scale_invariante_martingale_regularization(m_real, reg_lam=self.reg_lam)
 
@@ -138,7 +137,6 @@ class COTGAN(nn.Module):
         m_real_p = self.discriminator_m(real_data_p)
         # m_fake_p = self.discriminator_m(fake_data_p)
 
-        # TODO(add 'scaling_coef, 'sinkhorn_eps', 'sinkhorn_l' to arg dictionary)
         # scaling_coef = 1
         self.sinkhorn_eps = 0.1  # epsilon
         self.sinkhorn_l = 10  # iterations
