@@ -28,13 +28,12 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
             shuffle=True
         )
 
-
-
     # Optimizers
     beta1, beta2 = (params["beta1"], params["beta2"])
     disc_h_opt = torch.optim.Adam(model.discriminator_h.parameters(), lr=learning_rate, betas=(beta1, beta2))
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate, betas=(beta1, beta2))
+    model.to(device)
 
     x_sw = torch.concat([x for x, _ in dataloader])
     n_samples = len(x_sw)
@@ -51,9 +50,10 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
             Z_mb_p = torch.randn(batch_size, max_seq_len, Z_dim, device=device)
 
             # Train discriminator
+            D_loss = model(Z_mb, Z_mb_p, X_mb, X_mb_p, obj="discriminator")
+            # Update discriminators
             disc_h_opt.zero_grad()
             disc_m_opt.zero_grad()
-            D_loss = model(Z_mb, Z_mb_p, X_mb, X_mb_p, obj="discriminator")
             D_loss.backward()
             disc_h_opt.step()
             disc_m_opt.step()
@@ -65,11 +65,12 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
             gen_opt.step()
 
         logger.set_description(
-            f"Epoch: {epoch}, G: {-G_loss:.4f}, D: {-D_loss:.4f}"
+            f"Epoch: {epoch}, G: {G_loss:.4f}, D: {-D_loss:.4f}"
         )
         if neptune_logger is not None:
-            neptune_logger["train/Generator"].log(-G_loss)
+            neptune_logger["train/Generator"].log(G_loss)
             neptune_logger["train/Discriminator"].log(-D_loss)
+            neptune_logger["train/martingale_regularization"].log(-(G_loss-D_loss))
             if (epoch + 1)  > 0: # (epoch + 1) % 10 == 0:
                 with torch.no_grad():
                     # generate synthetic data and plot it
