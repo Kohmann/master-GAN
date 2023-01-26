@@ -49,8 +49,8 @@ class sinusGenerator(nn.Module):
         self.Z_dim = args["Z_dim"]
         self.hidden_dim = args["hidden_dim"]
         self.gen_rnn_hidden_dim = args["gen_rnn_hidden_dim"]
-        self.feature_dim = args["feature_dim"]
         self.gen_rnn_num_layers = args["gen_rnn_num_layers"]
+        self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
 
         # Generator Architecture
