@@ -92,4 +92,4 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                     plt.close(fig)
 
     # save model
-    torch.save(model.state_dict(), f"./models/{model_name}.pt")
+    torch.save(model.state_dict(), f"./models/{model_name}")
