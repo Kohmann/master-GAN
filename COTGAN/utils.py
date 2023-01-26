@@ -99,7 +99,7 @@ class DatasetSinus(torch.utils.data.Dataset):
         - t (torch.LongTensor): the temporal feature of the data
     """
 
-    def __init__(self, num, seq_len, alpha, noise, s1_freq=None, s2_freq=None, s1_phase=None, s2_phase=None):
+    def __init__(self, num, seq_len, alpha, noise, s1_freq=None, s2_freq=None, s1_phase=None, s2_phase=None, device="cpu"):
         """Initialize the dataset
         Optinal args:
         s1_freq, s2_freq, s1_phase, s2_phase: list of two floats, [min, max]
@@ -120,6 +120,10 @@ class DatasetSinus(torch.utils.data.Dataset):
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
         self.T = [x.size(0) for x in self.X]
+        # Move X and T to GPU
+        self.X = self.X.to(torch.float32).to(device)
+
+        self.T = torch.LongTensor(self.T).to(device)
 
     def __len__(self):
         return len(self.X)
