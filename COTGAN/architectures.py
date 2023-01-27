@@ -2,9 +2,9 @@ import torch.nn as nn
 
 from cost_utils import *
 
-class sinusDiscriminator(nn.Module):
+class SinusDiscriminator(nn.Module):
     def __init__(self, args):
-        super(sinusDiscriminator, self).__init__()
+        super(SinusDiscriminator, self).__init__()
         # Basic parameters
         self.device = args["device"]
 
@@ -15,7 +15,7 @@ class sinusDiscriminator(nn.Module):
         self.max_seq_len = args["max_seq_len"]
 
         # Discriminator Architecture
-        self.dis_cnn = nn.Sequential(
+        """self.dis_cnn = nn.Sequential(
             nn.Conv1d(in_channels=self.feature_dim,
                       out_channels=self.hidden_dim,
                       kernel_size=5,
@@ -26,7 +26,24 @@ class sinusDiscriminator(nn.Module):
                       kernel_size=5,
                       stride=1,),
             nn.ReLU(),
-        )
+        )"""
+
+        self.dis_cnn = list()
+        self.dis_cnn.append(nn.Conv1d(in_channels=self.feature_dim,
+                                      out_channels=self.hidden_dim,
+                                      kernel_size=5,
+                                      stride=1,))
+        self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
+        self.dis_cnn.append(nn.ReLU())
+        self.dis_cnn.append(nn.Conv1d(in_channels=self.hidden_dim,
+                                      out_channels=self.hidden_dim*2,
+                                      kernel_size=5,
+                                      stride=1,))
+        self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim*2))
+        self.dis_cnn.append(nn.ReLU())
+        self.dis_cnn = nn.Sequential(*self.dis_cnn)
+
+
         self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
                               hidden_size=self.feature_dim,
                               num_layers=1,
@@ -41,9 +58,9 @@ class sinusDiscriminator(nn.Module):
         #logits = torch.sigmoid(H)
         return H
 
-class sinusGenerator(nn.Module):
+class SinusGenerator(nn.Module):
     def __init__(self, args):
-        super(sinusGenerator, self).__init__()
+        super(SinusGenerator, self).__init__()
         # Basic parameters
         self.device = args["device"]
         self.Z_dim = args["Z_dim"]
@@ -62,7 +79,8 @@ class sinusGenerator(nn.Module):
         self.gen_FC = nn.Sequential(
             nn.Linear(self.gen_rnn_hidden_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.feature_dim)
+            nn.Linear(self.hidden_dim, self.feature_dim),
+            nn.Sigmoid()
         )
 
     def forward(self, z):
@@ -86,9 +104,9 @@ class COTGAN(nn.Module):
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
 
-        self.generator = sinusGenerator(args=args)
-        self.discriminator_h = sinusDiscriminator(args=args)
-        self.discriminator_m = sinusDiscriminator(args=args)
+        self.generator = SinusGenerator(args=args)
+        self.discriminator_h = SinusDiscriminator(args=args)
+        self.discriminator_m = SinusDiscriminator(args=args)
 
 
     def __discriminator_loss(self, real_data, real_data_p, z1, z2):
@@ -165,8 +183,8 @@ if __name__ == "__main__":
         "device": "cpu"
     }
 
-    gen = sinusGenerator(args)
-    dis = sinusDiscriminator(args)
+    gen = SinusGenerator(args)
+    dis = SinusDiscriminator(args)
     print(gen(z).size())
     print(dis(x).size())
     model = COTGAN(args)

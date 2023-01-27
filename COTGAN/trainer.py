@@ -128,3 +128,71 @@ def cotgan_generator(model, params, eval=False):
         generated_data = model(Z, obj="inference")
     print("Done")
     return generated_data.cpu().numpy()
+
+
+def create_idun_job(params):
+    """Create a job on idun
+    Args:
+        - params (dict): The model/training configurations
+    Returns:
+        - job (idun.job): The job on idun
+    """
+
+import argparse
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='cot')
+    parser.add_argument('-d', '--dname', type=str, default='spatial_data',
+                        choices=['spatial_data'])
+    parser.add_argument('-t', '--test', type=str, default='cot', choices=['cot'])
+    parser.add_argument('-s', '--seed', type=int, default=1)
+    parser.add_argument('-gss', '--g_state_size', type=int, default=32)
+    parser.add_argument('-gfs', '--g_filter_size', type=int, default=32)
+    parser.add_argument('-dss', '--d_state_size', type=int, default=32)
+    parser.add_argument('-dfs', '--d_filter_size', type=int, default=32)
+
+    # animation data has T=13 and human action data has T=16
+    parser.add_argument('-ts', '--time_steps', type=int, default=10)
+    parser.add_argument('-sinke', '--sinkhorn_eps', type=float, default=0.8)
+    parser.add_argument('-reg_p', '--reg_penalty', type=float, default=0.01)
+    parser.add_argument('-sinkl', '--sinkhorn_l', type=int, default=100)
+    parser.add_argument('-Dx', '--Dx', type=int, default=1)
+    parser.add_argument('-Dz', '--z_dims_t', type=int, default=5)
+    parser.add_argument('-Dy', '--y_dims', type=int, default=20)
+    parser.add_argument('-g', '--gen', type=str, default="fc",
+                        choices=["lstm", "fc"])
+    parser.add_argument('-bs', '--batch_size', type=int, default=4)
+    parser.add_argument('-p', '--path', type=str,
+                        default='/home/')
+    parser.add_argument('-save', '--save_freq', type=int, default=500)
+    parser.add_argument('-lr', '--lr', type=float, default=1e-3)
+    parser.add_argument('-bn', '--batch_norm', type=bool, default=True)
+    parser.add_argument('-nlstm', '--n_lstm', type=int, default=1)
+
+    # animation original data has 4 channels and human action data has 3
+    parser.add_argument('-nch', '--n_channels', type=int, default=1)
+    parser.add_argument('-rt', '--read_tfrecord', type=bool, default=True)
+    parser.add_argument('-lp', '--projector', type=bool, default=False)
+
+    args = parser.parse_args()
+
+    """
+    "model_name": "model_cotgan.pt",
+    "n_epochs": 100,
+    "l_rate": 0.001, # for both D and G
+    "batch_size": 32,
+    #"dis_rnn_num_layers": 2,
+    #"dis_rnn_hidden_dim": 20,
+    "gen_rnn_num_layers": 1,
+    "gen_rnn_hidden_dim": 20,
+    "hidden_dim": 64, #
+    "scaling_coef": 1.0, # distance scaling (TODO(Not implemented))
+    "sinkhorn_eps": 0.5, # epsilon regularizer
+    "sinkhorn_l": 100, # sinkhorn calculation iterations
+    "reg_lam": 0.1, # martingale penalty coefficient
+    "Z_dim": 100,
+    "optimizer": "Adam", # RMSprop, Adam
+    "beta1": 0.5,
+    "beta2": 0.9,
+    """
+
+    create_idun_job(args)
