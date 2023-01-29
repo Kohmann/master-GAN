@@ -92,7 +92,6 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                     # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
                     # neptune_logger["generated_image"].upload(fig)
                     neptune_logger["generated_image"].log(fig)
-
                     neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
                     plt.close(fig)
 

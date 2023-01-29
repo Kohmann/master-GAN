@@ -65,8 +65,10 @@ class SinusGenerator(nn.Module):
         self.device = args["device"]
         self.Z_dim = args["Z_dim"]
         self.hidden_dim = args["hidden_dim"]
+        self.num_hidden_layers = args["num_hidden_layers"]
         self.gen_rnn_hidden_dim = args["gen_rnn_hidden_dim"]
         self.gen_rnn_num_layers = args["gen_rnn_num_layers"]
+        #self.use_batch_norm = args["use_batch_norm"]
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
 
@@ -76,30 +78,43 @@ class SinusGenerator(nn.Module):
                              num_layers=self.gen_rnn_num_layers,
                              batch_first=True)
 
-        self.gen_FC = nn.Sequential(
+        """self.gen_FC = nn.Sequential(
             nn.Linear(self.gen_rnn_hidden_dim, self.hidden_dim),
+            #nn.BatchNorm1d(self.Z_dim),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.feature_dim),
             nn.Sigmoid()
-        )
+        )"""
+
+        input_hidden = self.gen_rnn_hidden_dim
+        self.gen_FC = list()
+        for _ in range(self.num_hidden_layers-1):
+            self.gen_FC.append(nn.Linear(input_hidden, self.hidden_dim))
+            #if self.use_batch_norm:
+            #    self.gen_FC.append(nn.BatchNorm1d(self.hidden_dim))
+            self.gen_FC.append(nn.ReLU())
+            input_hidden = self.hidden_dim
+
+        self.gen_FC.append(nn.Linear(input_hidden, self.feature_dim))
+        self.gen_FC.append(nn.Sigmoid())
+
+        self.gen_FC = nn.Sequential(*self.gen_FC)
 
     def forward(self, z):
         # (B x S x Z)
         H, H_t = self.gen_rnn(z)
-        # B x F
+        # B x F x S
         H = H.squeeze(-1)
-        # B x F
-        logits = self.gen_FC(H)
-
-        return logits
+        # B x F x S
+        out = self.gen_FC(H)
+        return out
 
 
 class COTGAN(nn.Module):
     def __init__(self, args):
         super(COTGAN, self).__init__()
-        # TODO (Check that everything is on the correct device: cpu or cuda)
 
-        self.scaling_coef = args["scaling_coef"]
+        #self.scaling_coef = args["scaling_coef"]
         self.sinkhorn_eps = args["sinkhorn_eps"]
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
@@ -172,23 +187,30 @@ if __name__ == "__main__":
     z = torch.randn(16, 100, 100)
 
     args = {
-        "gen_rnn_hidden_dim": 50,
+        "gen_rnn_hidden_dim": 4,
         "gen_rnn_num_layers": 2,
-        "dis_rnn_hidden_dim": 10,
+        "dis_rnn_hidden_dim": 4,
         "dis_rnn_num_layers": 2,
+        "num_hidden_layers": 2,
+        "use_batch_norm": False,
         "Z_dim": z.size(-1),
         "max_seq_len": x.size(1),
-        "hidden_dim": 3,
+        "hidden_dim": 10,
         "feature_dim": x.size(-1),
-        "device": "cpu"
+        "device": "cpu",
+        "scaling_coef": 1,
+        "sinkhorn_eps": 0.1,
+        "sinkhorn_l": 10,
+        "reg_lam": 0.1
+
     }
 
     gen = SinusGenerator(args)
     dis = SinusDiscriminator(args)
-    print(gen(z).size())
-    print(dis(x).size())
     model = COTGAN(args)
-    print("Generator loss:", model(x, x, z, z, "generator"))
-    print("Discriminator loss:", model(x, x, z, z, "discriminator"))
+    print(gen(z).size())
+    #print(dis(x))
+    #print("Generator loss:", model(z, z, x, x, "generator"))
+    #print("Discriminator loss:", model(z, z, x, x, "discriminator"))
 
 
