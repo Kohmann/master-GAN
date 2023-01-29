@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
 
+from utils import DatasetSinus, log_visualizations
+import neptune.new as neptune
+
 from architectures import COTGAN
 from metrics import sw_approx
 
@@ -69,6 +72,8 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
             G_loss.backward()
             gen_opt.step()
 
+        G_loss = G_loss.detach().cpu()
+        D_loss = D_loss.detach().cpu()
         logger.set_description(
             f"Epoch: {epoch}, G: {G_loss:.4f}, D: {-D_loss:.4f}"
         )
@@ -128,11 +133,6 @@ def cotgan_generator(model, params, eval=False):
         generated_data = model(Z, obj="inference")
     print("Done")
     return generated_data.cpu().numpy()
-
-from utils import DatasetSinus, log_visualizations
-import numpy as np
-import torch
-import neptune.new as neptune
 
 def load_dataset_and_train(params):
     seed = params["seed"]
