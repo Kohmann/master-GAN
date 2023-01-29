@@ -46,7 +46,7 @@ class SinusDiscriminator(nn.Module):
 
         self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
                               hidden_size=self.feature_dim,
-                              num_layers=1,
+                              num_layers=2,
                               batch_first=True)
 
     def forward(self, x):

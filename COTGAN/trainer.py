@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
 
+from architectures import COTGAN
 from metrics import sw_approx
 
 def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None, continue_training=False):
@@ -128,68 +129,117 @@ def cotgan_generator(model, params, eval=False):
     print("Done")
     return generated_data.cpu().numpy()
 
+from utils import DatasetSinus, log_visualizations
+import numpy as np
+import torch
+import neptune.new as neptune
 
-def create_idun_job(params):
-    """Create a job on idun
-    Args:
-        - params (dict): The model/training configurations
-    Returns:
-        - job (idun.job): The job on idun
-    """
+def load_dataset_and_train(params):
+    seed = params["seed"]
+    alpha = params["alpha"]
+    trainset_size = params["trainset_size"]
+    testset_size = params["testset_size"]
+    max_seq_len = params["max_seq_len"]
+    device = params["device"]
+    noise = 0
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+    trainset = DatasetSinus(num=trainset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device=device)
+    testset = DatasetSinus(num=testset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device="cpu")
+
+    print("Num real samples:", len(testset))
+
+    # Start logger
+    run = neptune.init_run(
+        project="kohmann/COTGAN",
+        name="cotgan",
+        tags=["tuning"],
+        description="",
+        source_files=["architectures.py"],
+        capture_hardware_metrics=True if device == "cuda" else False,
+        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3YjFjNGY5MS1kOWU1LTRmZjgtOTNiYS0yOGI2NDdjZGYzNWUifQ==",
+    )
+
+    run["parameters"] = params
+    run["dataset"] = {"alpha": alpha, "noise": noise,
+                      "s1_freq": trainset.s1_freq, "s1_phase": trainset.s1_phase,
+                      "s2_freq": trainset.s2_freq, "s2_phase": trainset.s2_phase}
+
+    # Initialize model and train
+    model = COTGAN(params)
+    cotgan_trainer(model, trainset, params, val_dataset=testset, neptune_logger=run, continue_training=False)
+
+
+    ### Perform tests on the trained model ###
+
+    # Generate random synthetic data
+    gen_z = cotgan_generator(model, params)
+
+    log_visualizations(testset, gen_z, run)  # log pca, tsne, umap, mode_collapse
+    run["model_checkpoint"].upload("./models/" + params["model_name"])
+
+    from metrics import compare_sin3_generation, sw_approx
+    np.random.seed(seed + 1)
+    torch.manual_seed(seed + 1)
+    testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise,
+                            device="cpu")
+    fake_data = cotgan_generator(model, params)
+
+    mse_error = compare_sin3_generation(fake_data, alpha, noise)
+    print(f"MSE Error: {mse_error:.5f}")
+    x = torch.tensor(fake_data)
+    y = testset[:][0]
+    y_2 = testset2[:][0]
+
+    sw_baseline = sw_approx(y, y_2)
+    sw = sw_approx(y, x)
+
+    run["numeric_results/num_test_samples"] = len(testset)
+    run["numeric_results/sin3_generation_MSE_loss"] = mse_error
+    run["numeric_results/SW"] = sw#.item()
+    run["numeric_results/SW_baseline"] = sw_baseline#.item()
+    run.stop()
+
 
 import argparse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='cotgan')
 
     # Dataset params
-    parser.add_argument('-dataset', '--dataset', type=str, default='sinus',
-                        choices=['sinus'])
-    parser.add_argument('-seed', '--seed', type=int, default=1)
-    parser.add_argument('-n_samples', '--n_train_samples', type=int, default=32*2*24)
-    parser.add_argument('-seq_len', '--sequence_length', type=int, default=25)
-    parser.add_argument('-alpha', '--alpha', type=float, default=0.7)
+    parser.add_argument('--dataset', type=str, default='sinus', choices=['sinus'])
+    parser.add_argument('--max_seq_len', type=int, default=25)
+    parser.add_argument('--feature_dim', type=int, default=3)
+    parser.add_argument('--alpha', type=float, default=0.7) # exponential decay
+    parser.add_argument('--trainset_size', type=int, default=32*2*24)
+    parser.add_argument('--testset_size', type=int, default=32*2*12)
 
-
-    parser.add_argument('-device', '--device', type=str, default='cuda',
-                        choices=['cpu', 'cuda', 'mps'])
-    parser.add_argument('-lr', '--lr', type=float, default=1e-3)
-    parser.add_argument('-bs', '--batch_size', type=int, default=4)
-
-
+    # Hyperparameters
+    parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
+    parser.add_argument('--n_epochs', type=int, default=100)
+    parser.add_argument('--l_rate', type=float, default=0.001/2)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--optimizer', type=str, default='Adam')
+    parser.add_argument('--beta1', type=float, default=0.5)
+    parser.add_argument('--beta2', type=float, default=0.9)
+    # Model architecture
+    parser.add_argument('--gen_rnn_num_layers', type=int, default=2)
+    parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
+    parser.add_argument('--hidden_dim', type=int, default=64*2)
+    parser.add_argument('--num_hidden_layers', type=int, default=3)
+    parser.add_argument('--Z_dim', type=int, default=100)
     # Loss params
-    parser.add_argument('-sinkhorn_eps', '--sinkhorn_eps', type=float, default=0.8)
-    parser.add_argument('-reg_penalty', '--reg_penalty', type=float, default=0.01)
-    parser.add_argument('-sinkhorn_l', '--sinkhorn_l', type=int, default=100)
-
-    # Model architecture params
-
-    parser.add_argument('-model_name', '--model_name', type=str, default='model_cotgan.pt')
-    parser.add_argument('-n_epochs', '--n_epochs', type=int, default=100)
-    parser.add_argument('-l_rate', '--l_rate', type=float, default=0.001)
-    parser.add_argument('-batch_size', '--batch_size', type=int, default=32//2)
-    parser.add_argument('-gen_rnn_num_layers', '--gen_rnn_num_layers', type=int, default=2)
-    parser.add_argument('-gen_rnn_hidden_dim', '--gen_rnn_hidden_dim', type=int, default=64)
-    parser.add_argument('-hidden_dim', '--hidden_dim', type=int, default=64)
-    parser.add_argument('-scaling_coef', '--scaling_coef', type=float, default=1.0)
-    parser.add_argument('-sinkhorn_eps', '--sinkhorn_eps', type=float, default=0.8)
-    parser.add_argument('-sinkhorn_l', '--sinkhorn_l', type=int, default=100)
-    parser.add_argument('-reg_lam', '--reg_lam', type=float, default=0.01)
-    parser.add_argument('-Z_dim', '--Z_dim', type=int, default=100)
-    parser.add_argument('-optimizer', '--optimizer', type=str, default='Adam',
-                        choices=['RMSprop', 'Adam'])
-    parser.add_argument('-beta1', '--beta1', type=float, default=0.5)
-    parser.add_argument('-beta2', '--beta2', type=float, default=0.9)
-    parser.add_argument('-feature_dim', '--feature_dim', type=int, default=1)
-    parser.add_argument('-max_seq_len', '--max_seq_len', type=int, default=25)
-    parser.add_argument('-trainset_size', '--trainset_size', type=int, default=32*2*24)
-    parser.add_argument('-testset_size', '--testset_size', type=int, default=32*2*24)
-
-
-
+    parser.add_argument('--scaling_coef', type=float, default=1.0)
+    parser.add_argument('--sinkhorn_eps', type=float, default=0.8)
+    parser.add_argument('--sinkhorn_l', type=int, default=100)
+    parser.add_argument('--reg_lam', type=float, default=0.01)
+    # Other
+    parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu', 'mps'])
+    parser.add_argument('--seed', type=int, default=1)
 
 
 
     args = parser.parse_args()
-
-
-    create_idun_job(args)
+    print(vars(args), "\n\n")
+    load_dataset_and_train(vars(args))
