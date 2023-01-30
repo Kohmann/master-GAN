@@ -48,6 +48,8 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     fixed_Z_mb = torch.randn(n_samples, max_seq_len, Z_dim, device=device)
 
     logger = trange(n_epochs, desc=f"Epoch: 0, G_loss: 0, D_loss: 0")
+    G_loss = 0
+    D_loss = 0
     for epoch in logger:
         for X, _ in dataloader:
             X_mb, X_mb_p = torch.split(X, batch_size, dim=0)
@@ -208,35 +210,35 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='cotgan')
 
     # Dataset params
-    parser.add_argument('--dataset', type=str, default='sinus', choices=['sinus'])
-    parser.add_argument('--max_seq_len', type=int, default=25)
-    parser.add_argument('--feature_dim', type=int, default=3)
-    parser.add_argument('--alpha', type=float, default=0.7) # exponential decay
-    parser.add_argument('--trainset_size', type=int, default=32*2*24)
-    parser.add_argument('--testset_size', type=int, default=32*2*12)
+    parser.add_argument('--dataset',      type=str,   default='sinus', choices=['sinus'])
+    parser.add_argument('--max_seq_len',  type=int,   default=25)
+    parser.add_argument('--feature_dim',  type=int,   default=3)
+    parser.add_argument('--alpha',        type=float, default=0.7) # exponential decay
+    parser.add_argument('--trainset_size',type=int,  default=32*2*24)
+    parser.add_argument('--testset_size', type=int,  default=32*2*12)
 
     # Hyperparameters
-    parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
-    parser.add_argument('--n_epochs', type=int, default=100)
-    parser.add_argument('--l_rate', type=float, default=0.001/2)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--optimizer', type=str, default='Adam')
-    parser.add_argument('--beta1', type=float, default=0.5)
-    parser.add_argument('--beta2', type=float, default=0.9)
+    parser.add_argument('--model_name', type=str,   default='model_cotgan.pt')
+    parser.add_argument('--n_epochs',   type=int,   default=100)
+    parser.add_argument('--l_rate',     type=float, default=0.001/2)
+    parser.add_argument('--batch_size', type=int,   default=32)
+    parser.add_argument('--optimizer',  type=str,   default='Adam')
+    parser.add_argument('--beta1',      type=float, default=0.5)
+    parser.add_argument('--beta2',      type=float, default=0.9)
     # Model architecture
     parser.add_argument('--gen_rnn_num_layers', type=int, default=2)
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
-    parser.add_argument('--hidden_dim', type=int, default=64*2)
-    parser.add_argument('--num_hidden_layers', type=int, default=3)
-    parser.add_argument('--Z_dim', type=int, default=100)
+    parser.add_argument('--hidden_dim',         type=int, default=64*2)
+    parser.add_argument('--num_hidden_layers',  type=int, default=3)
+    parser.add_argument('--Z_dim',              type=int, default=100)
     # Loss params
-    parser.add_argument('--scaling_coef', type=float, default=1.0)
-    parser.add_argument('--sinkhorn_eps', type=float, default=0.8)
-    parser.add_argument('--sinkhorn_l', type=int, default=100)
-    parser.add_argument('--reg_lam', type=float, default=0.01)
+    parser.add_argument('--scaling_coef',     type=float, default=1.0)
+    parser.add_argument('--sinkhorn_eps',     type=float, default=0.8)
+    parser.add_argument('--sinkhorn_l',       type=int,   default=100)
+    parser.add_argument('--reg_lam',          type=float, default=0.01)
     # Other
     parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu', 'mps'])
-    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--seed',   type=int, default=1)
 
 
 
