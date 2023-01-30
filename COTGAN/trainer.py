@@ -158,7 +158,7 @@ def load_dataset_and_train(params):
         tags=["tuning"],
         description="",
         source_files=["architectures.py"],
-        capture_hardware_metrics=True if device == "cuda" else False,
+        capture_hardware_metrics=True,
         api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3YjFjNGY5MS1kOWU1LTRmZjgtOTNiYS0yOGI2NDdjZGYzNWUifQ==",
     )
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # Hyperparameters
     parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     parser.add_argument('--n_epochs', type=int, default=100)
-    parser.add_argument('--l_rate', type=float, default=0.001/2)
+    parser.add_argument('--l_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--beta1', type=float, default=0.5)
@@ -226,8 +226,8 @@ if __name__ == '__main__':
     # Model architecture
     parser.add_argument('--gen_rnn_num_layers', type=int, default=2)
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
-    parser.add_argument('--hidden_dim', type=int, default=64*2)
-    parser.add_argument('--num_hidden_layers', type=int, default=3)
+    parser.add_argument('--hidden_dim', type=int,         default=64*2)
+    parser.add_argument('--num_hidden_layers', type=int,  default=3)
     parser.add_argument('--Z_dim', type=int, default=100)
     # Loss params
     parser.add_argument('--scaling_coef', type=float, default=1.0)
