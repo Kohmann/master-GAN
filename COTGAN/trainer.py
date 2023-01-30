@@ -214,8 +214,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
     parser.add_argument('--alpha',        type=float, default=0.7) # exponential decay
-    parser.add_argument('--trainset_size',type=int,  default=32*2*24)
-    parser.add_argument('--testset_size', type=int,  default=32*2*12)
+    parser.add_argument('--trainset_size',type=int,   default=32*2*24)
+    parser.add_argument('--testset_size', type=int,   default=32*2*12)
 
     # Hyperparameters
     parser.add_argument('--model_name', type=str,   default='model_cotgan.pt')
@@ -228,6 +228,7 @@ if __name__ == '__main__':
     # Model architecture
     parser.add_argument('--gen_rnn_num_layers', type=int, default=2)
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
+    parser.add_argument('--dis_rnn_num_layers', type=int, default=2)
     parser.add_argument('--hidden_dim',         type=int, default=64*2)
     parser.add_argument('--num_hidden_layers',  type=int, default=3)
     parser.add_argument('--Z_dim',              type=int, default=100)

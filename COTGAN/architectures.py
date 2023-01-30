@@ -10,7 +10,7 @@ class SinusDiscriminator(nn.Module):
 
         self.hidden_dim = args["hidden_dim"]
         #self.dis_rnn_hidden_dim = args["dis_rnn_hidden_dim"]
-        # self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
+        self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
 
@@ -32,21 +32,21 @@ class SinusDiscriminator(nn.Module):
         self.dis_cnn.append(nn.Conv1d(in_channels=self.feature_dim,
                                       out_channels=self.hidden_dim,
                                       kernel_size=5,
-                                      stride=1,))
+                                      stride=2,))
         self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
-        self.dis_cnn.append(nn.ReLU())
+        self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn.append(nn.Conv1d(in_channels=self.hidden_dim,
                                       out_channels=self.hidden_dim*2,
                                       kernel_size=5,
-                                      stride=1,))
+                                      stride=2,))
         self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim*2))
-        self.dis_cnn.append(nn.ReLU())
+        self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn = nn.Sequential(*self.dis_cnn)
 
 
         self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
                               hidden_size=self.feature_dim,
-                              num_layers=2,
+                              num_layers=self.dis_rnn_num_layers,
                               batch_first=True)
 
     def forward(self, x):
