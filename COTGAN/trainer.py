@@ -160,7 +160,7 @@ def load_dataset_and_train(params):
         tags=["tuning"],
         description="",
         source_files=["architectures.py"],
-        capture_hardware_metrics=True if device == "cuda" else False,
+        capture_hardware_metrics=True,
         api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3YjFjNGY5MS1kOWU1LTRmZjgtOTNiYS0yOGI2NDdjZGYzNWUifQ==",
     )
 
