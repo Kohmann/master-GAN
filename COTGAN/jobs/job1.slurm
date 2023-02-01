@@ -22,7 +22,7 @@ echo "We are using $SLURM_CPUS_ON_NODE cores per node"
 echo "Total of $SLURM_NTASKS cores"
 
 
-cd ${SLURM_SUBMIT_DIR}
+cd ${SLURM_SUBMIT_DIR}/..
 
 module purge
 module load Python/3.8.6-GCCcore-10.2.0

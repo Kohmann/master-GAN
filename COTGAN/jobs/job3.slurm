@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --partition=GPUQ
 #SBATCH --account=ie-idi
-#SBATCH --time=04:10:00
+#SBATCH --time=04:00:00
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
@@ -22,7 +22,7 @@ echo "We are using $SLURM_CPUS_ON_NODE cores per node"
 echo "Total of $SLURM_NTASKS cores"
 
 
-cd ${SLURM_SUBMIT_DIR}
+cd ${SLURM_SUBMIT_DIR}/..
 
 module purge
 module load Python/3.8.6-GCCcore-10.2.0
