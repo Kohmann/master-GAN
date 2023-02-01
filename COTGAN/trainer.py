@@ -41,6 +41,12 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     disc_h_opt = torch.optim.Adam(model.discriminator_h.parameters(), lr=learning_rate, betas=(beta1, beta2))
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate, betas=(beta1, beta2))
+    # Schedulers (Optional)
+    #step_size = n_epochs // 4
+    #disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.7)
+    #disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.7)
+    #gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_opt,       step_size=step_size, gamma=0.7)
+
     model.to(device)
 
     x_sw = torch.concat([x for x, _ in dataloader]).detach_().cpu()
@@ -226,6 +232,7 @@ if __name__ == '__main__':
     parser.add_argument('--beta1',      type=float, default=0.5)
     parser.add_argument('--beta2',      type=float, default=0.9)
     # Model architecture
+    parser.add_argument('--rnn_type',           type=str, default='GRU', choices=['GRU', 'LSTM'])
     parser.add_argument('--gen_rnn_num_layers', type=int, default=2)
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
     parser.add_argument('--dis_rnn_num_layers', type=int, default=2)
