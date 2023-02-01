@@ -13,6 +13,7 @@ class SinusDiscriminator(nn.Module):
         self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
+        self.rnn_type = args["rnn_type"] # GRU or LSTM
 
         # Discriminator Architecture
         """self.dis_cnn = nn.Sequential(
@@ -43,11 +44,18 @@ class SinusDiscriminator(nn.Module):
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn = nn.Sequential(*self.dis_cnn)
 
-
-        self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
-                              hidden_size=self.feature_dim,
-                              num_layers=self.dis_rnn_num_layers,
-                              batch_first=True)
+        if self.rnn_type == "GRU":
+            self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
+                                  hidden_size=self.feature_dim,
+                                  num_layers=self.dis_rnn_num_layers,
+                                  batch_first=True)
+        elif self.rnn_type == "LSTM":
+            self.dis_rnn = nn.LSTM(input_size=self.hidden_dim*2,
+                                  hidden_size=self.feature_dim,
+                                  num_layers=self.dis_rnn_num_layers,
+                                  batch_first=True)
+        else:
+            raise NotImplementedError
 
     def forward(self, x):
         # x: B x S x F
@@ -71,12 +79,21 @@ class SinusGenerator(nn.Module):
         #self.use_batch_norm = args["use_batch_norm"]
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
+        self.rnn_type = args["rnn_type"]
 
         # Generator Architecture
-        self.gen_rnn = nn.GRU(input_size=self.Z_dim,
-                             hidden_size=self.gen_rnn_hidden_dim,
-                             num_layers=self.gen_rnn_num_layers,
-                             batch_first=True)
+        if self.rnn_type == "GRU":
+            self.gen_rnn = nn.GRU(input_size=self.Z_dim,
+                                 hidden_size=self.gen_rnn_hidden_dim,
+                                 num_layers=self.gen_rnn_num_layers,
+                                 batch_first=True)
+        elif self.rnn_type == "LSTM":
+            self.gen_rnn = nn.LSTM(input_size=self.Z_dim,
+                                 hidden_size=self.gen_rnn_hidden_dim,
+                                 num_layers=self.gen_rnn_num_layers,
+                                 batch_first=True)
+        else:
+            raise NotImplementedError
 
         """self.gen_FC = nn.Sequential(
             nn.Linear(self.gen_rnn_hidden_dim, self.hidden_dim),
