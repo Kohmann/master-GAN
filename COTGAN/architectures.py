@@ -14,6 +14,7 @@ class SinusDiscriminator(nn.Module):
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
         self.rnn_type = args["rnn_type"] # GRU or LSTM
+        self.use_bn = args["use_bn"]
 
         # Discriminator Architecture
         """self.dis_cnn = nn.Sequential(
@@ -34,13 +35,15 @@ class SinusDiscriminator(nn.Module):
                                       out_channels=self.hidden_dim,
                                       kernel_size=5,
                                       stride=2,))
-        self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
+        if self.use_bn:
+            self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn.append(nn.Conv1d(in_channels=self.hidden_dim,
                                       out_channels=self.hidden_dim*2,
                                       kernel_size=5,
                                       stride=2,))
-        self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim*2))
+        if self.use_bn:
+            self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim*2))
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn = nn.Sequential(*self.dis_cnn)
 
@@ -115,6 +118,7 @@ class SinusGenerator(nn.Module):
         self.gen_FC.append(nn.Linear(input_hidden, self.feature_dim))
         self.gen_FC.append(nn.Sigmoid())
 
+
         self.gen_FC = nn.Sequential(*self.gen_FC)
 
     def forward(self, z):
@@ -125,7 +129,6 @@ class SinusGenerator(nn.Module):
         # B x F x S
         out = self.gen_FC(H)
         return out
-
 
 class COTGAN(nn.Module):
     def __init__(self, args):
@@ -142,8 +145,8 @@ class COTGAN(nn.Module):
 
 
     def __discriminator_loss(self, real_data, real_data_p, z1, z2):
-        fake_data = self.generator(z1)
-        fake_data_p = self.generator(z2)
+        fake_data = self.generator(z1).detach()
+        fake_data_p = self.generator(z2).detach()
 
         # h_real = self.discriminator_h(real_data)
         h_fake = self.discriminator_h(fake_data)
@@ -196,6 +199,368 @@ class COTGAN(nn.Module):
             return X_hat.cpu().detach()
         else:
             raise ValueError("Invalid obj description. Must be in (generator, discriminator, inference)")
+
+# -*- coding: utf-8 -*-
+"""TimeGAN.ipynb
+
+"""
+
+####### TIMEGAN ARCHITECTURE #######
+class EmbeddingNetwork(nn.Module):
+
+    def __init__(self, feature_dim, hidden_dim, num_layers, padding_value, max_seq_len):
+        super().__init__()
+        self.feature_dim = feature_dim
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        self.emb_rnn = nn.GRU(
+            input_size=self.feature_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+        )
+
+        self.emb_linear = nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.emb_sigmoid = nn.Sigmoid()
+
+    def forward(self, X):
+        H_o, _ = self.emb_rnn(X)
+        logits = self.emb_linear(H_o)
+        H = self.emb_sigmoid(logits)
+        return H
+
+class RecoveryNetwork(nn.Module):
+    """The recovery network (decoder) for TimeGAN
+    """
+
+    def __init__(self, feature_dim, hidden_dim, num_layers, padding_value, max_seq_len):
+        super().__init__()
+        self.feature_dim = feature_dim
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        self.rec_rnn = nn.GRU(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+            bidirectional=False
+        )
+
+        self.rec_linear = torch.nn.Linear(self.hidden_dim, self.feature_dim)
+
+    def forward(self, H):
+        H_o, _ = self.rec_rnn(H)
+        X_tilde = self.rec_linear(H_o)
+        return X_tilde
+
+class SupervisorNetwork(torch.nn.Module):
+    """The Supervisor network (decoder) for TimeGAN
+    """
+
+    def __init__(self, hidden_dim, num_layers, padding_value, max_seq_len):
+        super(SupervisorNetwork, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers - 1 if num_layers > 1 else num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        # Supervisor Architecture
+        self.sup_rnn = torch.nn.GRU(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+        )
+        self.sup_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.sup_sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, H):
+        H_o, _ = self.sup_rnn(H)
+        logits = self.sup_linear(H_o)
+        H_hat = self.sup_sigmoid(logits)
+        return H_hat
+
+class GeneratorNetwork(torch.nn.Module):
+    """The generator network (encoder) for TimeGAN
+    """
+
+    def __init__(self, Z_dim, hidden_dim, num_layers, padding_value, max_seq_len):
+        super(GeneratorNetwork, self).__init__()
+        self.Z_dim = Z_dim
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        # Generator Architecture
+        self.gen_rnn = torch.nn.GRU(
+            input_size=self.Z_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+            #bidirectional=True
+        )
+        self.gen_linear = torch.nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.gen_sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, Z):
+
+        H_o, _ = self.gen_rnn(Z)
+        logits = self.gen_linear(H_o)
+        H = self.gen_sigmoid(logits)
+        return H
+
+class DiscriminatorNetwork(torch.nn.Module):
+    """The Discriminator network (decoder) for TimeGAN
+    """
+
+    def __init__(self, hidden_dim, num_layers, padding_value, max_seq_len):
+        super(DiscriminatorNetwork, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.padding_value = padding_value
+        self.max_seq_len = max_seq_len
+
+        # Discriminator Architecture
+        self.dis_rnn = torch.nn.GRU(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            batch_first=True,
+            bidirectional=False
+        )
+        self.dis_linear = torch.nn.Linear(self.hidden_dim, 1)
+
+    def forward(self, H):
+        H_o, _ = self.dis_rnn(H)
+        logits = self.dis_linear(H_o).squeeze(-1)
+        return logits
+
+class TimeGAN(torch.nn.Module):
+    """Implementation of TimeGAN (Yoon et al., 2019) using PyTorch\n
+    Reference:
+    - https://papers.nips.cc/paper/2019/hash/c9efe5f26cd17ba6216bbe2a7d26d490-Abstract.html
+    - https://github.com/jsyoon0823/TimeGAN
+    """
+
+    def __init__(self, params):
+        super(TimeGAN, self).__init__()
+        self.device = params['device']
+        self.feature_dim = params['feature_dim']
+        self.Z_dim = params['Z_dim']
+        self.hidden_dim = params['hidden_dim']
+        self.num_layers = params['num_layers']
+        self.padding_value = 0.0
+        self.max_seq_len = params['max_seq_len']
+        self.batch_size = params['batch_size']
+
+        # Networks
+        self.embedder = EmbeddingNetwork(self.feature_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                         self.max_seq_len)
+        self.recovery = RecoveryNetwork(self.feature_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                        self.max_seq_len)
+        self.supervisor = SupervisorNetwork(self.hidden_dim, self.num_layers, self.padding_value, self.max_seq_len)
+        self.generator = GeneratorNetwork(self.Z_dim, self.hidden_dim, self.num_layers, self.padding_value,
+                                          self.max_seq_len)
+        self.discriminator = DiscriminatorNetwork(self.hidden_dim, self.num_layers, self.padding_value,
+                                                  self.max_seq_len)
+
+    def _recovery_forward(self, X):
+        """The embedding network forward pass and the embedder network loss
+        Args:
+            - X: the original input features
+        Returns:
+            - E_loss: the reconstruction loss
+            - X_tilde: the reconstructed features
+        """
+        # Forward Pass
+        H = self.embedder(X)
+        X_tilde = self.recovery(H)
+
+        # For Joint training
+        H_hat_supervise = self.supervisor(H)
+        G_loss_S = torch.nn.functional.mse_loss(
+            H_hat_supervise[:, :-1, :],
+            H[:, 1:, :]
+        )  # Teacher forcing next output
+
+        # Reconstruction Loss
+        E_loss_T0 = torch.nn.functional.mse_loss(X_tilde, X)
+        E_loss0 = torch.sqrt(E_loss_T0) * 10
+        E_loss = E_loss0 + 0.1 * G_loss_S
+        return E_loss, E_loss0, E_loss_T0
+
+    def _supervisor_forward(self, X):
+        """The supervisor training forward pass
+        Args:
+            - X: the original feature input
+        Returns:
+            - S_loss: the supervisor's loss
+        """
+        # Supervision Forward Pass
+        H = self.embedder(X)
+        H_hat_supervise = self.supervisor(H)
+
+        # Supervised loss
+        S_loss = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
+        return S_loss
+
+    def _discriminator_forward(self, X, Z, gamma=1):
+        """The discriminator forward pass and adversarial loss
+        Args:
+            - X: the input features
+            - Z: the input noise
+        Returns:
+            - D_loss: the adversarial loss
+        """
+        # Real
+        H = self.embedder(X).detach()
+
+        # Generator
+        H_g  = self.generator(Z).detach() # Output generator
+        H_gs = self.supervisor(H_g).detach() # Output of generator + supervisor
+
+        # Forward Pass
+        Y_real    = self.discriminator(H)  # Encoded original data
+        Y_fake_g  = self.discriminator(H_g)  # Output of generator
+        Y_fake_gs = self.discriminator(H_gs)  # Output of generator + supervisor
+
+        smooth_label_real = torch.ones_like(Y_real)  # * 0.9
+        D_loss_real =    torch.nn.functional.binary_cross_entropy_with_logits(Y_real,   smooth_label_real)
+        D_loss_fake_g =  torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_g, torch.zeros_like(Y_fake_g))
+        D_loss_fake_gs = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_gs, torch.zeros_like(Y_fake_gs))
+
+        D_loss = D_loss_real + D_loss_fake_g + gamma * D_loss_fake_gs
+
+        return D_loss
+
+    def _generator_forward(self, X, Z, gamma=1):
+        """The generator forward pass
+        Args:
+            - X: the original feature input
+            - T: the temporal information
+            - Z: the noise for generator input
+        Returns:
+            - G_loss: the generator's loss
+        """
+        # Supervisor Forward Pass
+        H = self.embedder(X)
+        H_hat_supervise = self.supervisor(H)
+
+        # Generator Forward Pass
+        H_g =  self.generator(Z)
+        H_gs = self.supervisor(H_g)
+
+        # Synthetic data generated
+        X_hat = self.recovery(H_gs)
+
+        # Generator Loss
+        # 1. Adversarial loss
+        Y_fake_g = self.discriminator(H_g)  # Output of generator
+        Y_fake_gs = self.discriminator(H_gs)  # Output of supervisor
+
+        # Using max E[log(D(G(z)))]
+        smooth_labels_L = torch.ones_like(Y_fake_gs)  # * 0.9  # torch.tensor(np.random.uniform(0.7, 0.9, Y_fake.size()))
+        smooth_labels_U = torch.ones_like(Y_fake_g)  # * 0.9
+        G_loss_U_g = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_g,  smooth_labels_L)
+        G_loss_U_gs = torch.nn.functional.binary_cross_entropy_with_logits(Y_fake_gs, smooth_labels_U)
+
+        # 2. Supervised loss
+        G_loss_S = torch.nn.functional.mse_loss(H_hat_supervise[:, :-1, :], H[:, 1:, :])  # Teacher forcing next output
+
+        # 3. Two Momments
+        G_loss_V1 = torch.mean(torch.abs(torch.sqrt(X_hat.var(dim=0, unbiased=False) + 1e-6)
+                                           - torch.sqrt(X.var(dim=0, unbiased=False) + 1e-6)))
+        G_loss_V2 = torch.mean(torch.abs((X_hat.mean(dim=0)) - (X.mean(dim=0))))
+
+        G_loss_V = G_loss_V1 + G_loss_V2
+
+        # 4. Summation
+        G_loss =  G_loss_U_g + gamma*G_loss_U_gs + 100 * torch.sqrt(G_loss_S) + 100 * G_loss_V
+
+        return G_loss
+
+    def _inference(self, Z):
+        """Inference for generating synthetic data
+        Args:
+            - Z: the input noise
+            - T: the temporal information
+        Returns:
+            - X_hat: the generated data
+        """
+        # Generator Forward Pass
+        H_g = self.generator(Z)
+        H_gs = self.supervisor(H_g)
+
+        # Synthetic data generated
+        X_hat = self.recovery(H_gs)
+        return X_hat
+
+    def forward(self, X, Z, obj, gamma=1):
+        """
+        Args:
+            - X: the input features (B, H, F)
+            - Z: the sampled noise (B, H, Z)
+            - obj: the network to be trained (`autoencoder`, `supervisor`, `generator`, `discriminator`)
+            - gamma: loss hyperparameter
+        Returns:
+            - loss: The loss for the forward pass
+            - X_hat: The generated data
+        """
+        if obj != "inference":
+            if X is None:
+                raise ValueError("`X` should be given")
+
+            X = torch.FloatTensor(X)
+            X = X.to(self.device)
+
+        if Z is not None:
+            Z = torch.FloatTensor(Z)
+            Z = Z.to(self.device)
+
+        if obj == "autoencoder":
+            # Embedder & Recovery
+            loss = self._recovery_forward(X)
+
+        elif obj == "supervisor":
+            # Supervisor
+            loss = self._supervisor_forward(X)
+
+        elif obj == "generator":
+            if Z is None:
+                raise ValueError("`Z` is not given")
+
+            # Generator
+            loss = self._generator_forward(X, Z)
+
+        elif obj == "discriminator":
+            if Z is None:
+                raise ValueError("`Z` is not given")
+
+            # Discriminator
+            loss = self._discriminator_forward(X, Z)
+
+            return loss
+
+        elif obj == "inference":
+
+            X_hat = self._inference(Z)
+            X_hat = X_hat.cpu().detach()
+
+            return X_hat
+
+        else:
+            raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
+
+        return loss
+
+
 
 
 if __name__ == "__main__":
