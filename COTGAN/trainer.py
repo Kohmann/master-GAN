@@ -14,6 +14,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     batch_size = params["batch_size"]
     n_epochs = params["n_epochs"]
     learning_rate = params["l_rate"]
+    learning_rate_g = params["l_rate_g"]
     device = params["device"]
     model_name = params["model_name"]
     max_seq_len = params["max_seq_len"]
@@ -25,9 +26,6 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
         batch_size=batch_size*2,
         shuffle=True
     )
-    # TODO - put data into GPU entirely
-    #dataloader.train_data.to(torch.device(device))  # put data into GPU entirely
-    #dataloader.train_labels.to(torch.device(device))
 
     if val_dataset is not None:
         dataloader_val = torch.utils.data.DataLoader(
@@ -40,7 +38,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     beta1, beta2 = (params["beta1"], params["beta2"])
     disc_h_opt = torch.optim.Adam(model.discriminator_h.parameters(), lr=learning_rate, betas=(beta1, beta2))
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
-    gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate, betas=(beta1, beta2))
+    gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate_g, betas=(beta1, beta2))
     # Schedulers (Optional)
     #step_size = n_epochs // 4
     #disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.7)
@@ -226,7 +224,8 @@ if __name__ == '__main__':
     # Hyperparameters
     parser.add_argument('--model_name', type=str,   default='model_cotgan.pt')
     parser.add_argument('--n_epochs',   type=int,   default=100)
-    parser.add_argument('--l_rate',     type=float, default=0.001/2)
+    parser.add_argument('--l_rate',     type=float, default=0.001)
+    parser.add_argument('--l_rate_g',   type=float, default=0.001)
     parser.add_argument('--batch_size', type=int,   default=32)
     parser.add_argument('--optimizer',  type=str,   default='Adam')
     parser.add_argument('--beta1',      type=float, default=0.5)
@@ -239,6 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--hidden_dim',         type=int, default=64*2)
     parser.add_argument('--num_hidden_layers',  type=int, default=3)
     parser.add_argument('--Z_dim',              type=int, default=100)
+    parser.add_argument('--use_bn',             type=bool,default=False)
     # Loss params
     parser.add_argument('--scaling_coef',     type=float, default=1.0)
     parser.add_argument('--sinkhorn_eps',     type=float, default=0.8)
