@@ -34,14 +34,14 @@ class SinusDiscriminator(nn.Module):
         self.dis_cnn.append(nn.Conv1d(in_channels=self.feature_dim,
                                       out_channels=self.hidden_dim,
                                       kernel_size=5,
-                                      stride=2,))
+                                      stride=1,))
         if self.use_bn:
             self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn.append(nn.Conv1d(in_channels=self.hidden_dim,
                                       out_channels=self.hidden_dim*2,
                                       kernel_size=5,
-                                      stride=2,))
+                                      stride=1,))
         if self.use_bn:
             self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim*2))
         self.dis_cnn.append(nn.LeakyReLU())
@@ -80,9 +80,9 @@ class SinusDiscriminator(nn.Module):
         x = self.dis_cnn(x)
         x = x.permute(0, 2, 1) # B x S x F
         if self.dis_rnn_2 is not None:
-            H, H_t = self.dis_rnn_2(x)
+            H, _ = self.dis_rnn_2(x)
             x = H
-        H, H_t = self.dis_rnn(x)
+        H, _ = self.dis_rnn(x)
 
         #logits = torch.sigmoid(H)
         return H
