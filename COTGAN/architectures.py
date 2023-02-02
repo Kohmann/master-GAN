@@ -9,7 +9,7 @@ class SinusDiscriminator(nn.Module):
         self.device = args["device"]
 
         self.hidden_dim = args["hidden_dim"]
-        #self.dis_rnn_hidden_dim = args["dis_rnn_hidden_dim"]
+        self.dis_rnn_hidden_dim = args["dis_rnn_hidden_dim"]
         self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
         self.feature_dim = args["feature_dim"]
         self.max_seq_len = args["max_seq_len"]
@@ -47,7 +47,21 @@ class SinusDiscriminator(nn.Module):
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn = nn.Sequential(*self.dis_cnn)
 
-        if self.rnn_type == "GRU":
+        self.dis_rnn_2 = None
+        input_rnn_dim = self.hidden_dim * 2
+        if self.dis_rnn_num_layers-1 > 0:
+            self.dis_rnn_2 = nn.GRU(input_size=input_rnn_dim,
+                   hidden_size=self.dis_rnn_hidden_dim,
+                   num_layers=self.dis_rnn_num_layers-1,
+                   batch_first=True)
+            input_rnn_dim = self.dis_rnn_hidden_dim
+
+        self.dis_rnn = nn.GRU(input_size=input_rnn_dim,
+                              hidden_size=self.feature_dim,
+                              num_layers=1,
+                              batch_first=True)
+
+        """if self.rnn_type == "GRU":
             self.dis_rnn = nn.GRU(input_size=self.hidden_dim*2,
                                   hidden_size=self.feature_dim,
                                   num_layers=self.dis_rnn_num_layers,
@@ -58,14 +72,18 @@ class SinusDiscriminator(nn.Module):
                                   num_layers=self.dis_rnn_num_layers,
                                   batch_first=True)
         else:
-            raise NotImplementedError
+            raise NotImplementedError"""
 
     def forward(self, x):
         # x: B x S x F
         x = x.permute(0, 2, 1) # B x F x S
         x = self.dis_cnn(x)
         x = x.permute(0, 2, 1) # B x S x F
+        if self.dis_rnn_2 is not None:
+            H, H_t = self.dis_rnn_2(x)
+            x = H
         H, H_t = self.dis_rnn(x)
+
         #logits = torch.sigmoid(H)
         return H
 
