@@ -12,23 +12,12 @@ class SinusDiscriminator(nn.Module):
         self.dis_rnn_hidden_dim = args["dis_rnn_hidden_dim"]
         self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
         self.feature_dim = args["feature_dim"]
+        self.J_dim = args["J_dim"]
         self.max_seq_len = args["max_seq_len"]
         self.rnn_type = args["rnn_type"] # GRU or LSTM
         self.use_bn = args["use_bn"]
 
         # Discriminator Architecture
-        """self.dis_cnn = nn.Sequential(
-            nn.Conv1d(in_channels=self.feature_dim,
-                      out_channels=self.hidden_dim,
-                      kernel_size=5,
-                      stride=1,),
-            nn.ReLU(),
-            nn.Conv1d(in_channels=self.hidden_dim,
-                      out_channels=self.hidden_dim*2,
-                      kernel_size=5,
-                      stride=1,),
-            nn.ReLU(),
-        )"""
 
         self.dis_cnn = list()
         self.dis_cnn.append(nn.Conv1d(in_channels=self.feature_dim,
@@ -148,6 +137,68 @@ class SinusGenerator(nn.Module):
         out = self.gen_FC(H)
         return out
 
+
+class videoDiscriminator(nn.Module):
+    def __init__(self, args):
+        super(videoDiscriminator, self).__init__()
+        # Basic parameters
+        self.device = args["device"]
+        self.batch_size = args["batch_size"]
+
+        self.hidden_dim = args["hidden_dim"]
+        self.dis_rnn_hidden_dim = args["dis_rnn_hidden_dim"]
+        self.dis_rnn_num_layers = args["dis_rnn_num_layers"]
+        self.feature_dim = args["feature_dim"]
+        self.J_dim = args["J_dim"]
+        self.max_seq_len = args["max_seq_len"]
+        self.rnn_type = args["rnn_type"] # GRU or LSTM
+        self.use_bn = args["use_bn"]
+
+        # Discriminator Architecture
+        # input = (B, S, D), e.g. (32, 100, 25)
+
+        self.dis_cnn = list()
+        self.dis_cnn.append(nn.Conv2d(in_channels=self.feature_dim, out_channels=self.hidden_dim,
+                                      kernel_size=5,
+                                      stride=2,))
+        if self.use_bn:
+            self.dis_cnn.append(nn.BatchNorm2d(self.hidden_dim))
+        self.dis_cnn.append(nn.LeakyReLU())
+        self.dis_cnn.append(nn.Conv2d(in_channels=self.hidden_dim, out_channels=self.hidden_dim*2,
+                                      kernel_size=5,
+                                      stride=2,))
+        if self.use_bn:
+            self.dis_cnn.append(nn.BatchNorm2d(self.hidden_dim*2))
+        self.dis_cnn.append(nn.LeakyReLU())
+
+        self.dis_cnn = nn.Sequential(*self.dis_cnn)
+
+        self.dis_rnn_2 = None
+        input_rnn_dim = self.hidden_dim * 2
+        if self.dis_rnn_num_layers-1 > 0:
+            self.dis_rnn_2 = nn.GRU(input_size=input_rnn_dim,
+                   hidden_size=self.dis_rnn_hidden_dim,
+                   num_layers=self.dis_rnn_num_layers-1,
+                   batch_first=True)
+            input_rnn_dim = self.dis_rnn_hidden_dim
+
+        self.dis_rnn = nn.GRU(input_size=input_rnn_dim,
+                              hidden_size=self.J_dim,
+                              num_layers=1,
+                              batch_first=True)
+
+    def forward(self, x):
+        # B x 1 x S x F
+        x = x.unsqueeze(1)
+        # B x H x S/4 x F/4
+        x = self.dis_cnn(x)
+        # B x H x S/4 x F/4
+        x = x.view(x.size(0), x.size(1), -1)
+        # B x H x S/4
+
+
+        return H
+
 class COTGAN(nn.Module):
     def __init__(self, args):
         super(COTGAN, self).__init__()
@@ -160,7 +211,6 @@ class COTGAN(nn.Module):
         self.generator = SinusGenerator(args=args)
         self.discriminator_h = SinusDiscriminator(args=args)
         self.discriminator_m = SinusDiscriminator(args=args)
-
 
     def __discriminator_loss(self, real_data, real_data_p, z1, z2):
         fake_data = self.generator(z1).detach()
@@ -218,10 +268,6 @@ class COTGAN(nn.Module):
         else:
             raise ValueError("Invalid obj description. Must be in (generator, discriminator, inference)")
 
-# -*- coding: utf-8 -*-
-"""TimeGAN.ipynb
-
-"""
 
 ####### TIMEGAN ARCHITECTURE #######
 class EmbeddingNetwork(nn.Module):
@@ -480,7 +526,7 @@ class TimeGAN(torch.nn.Module):
 
         # Generator Loss
         # 1. Adversarial loss
-        Y_fake_g = self.discriminator(H_g)  # Output of generator
+        Y_fake_g  = self.discriminator(H_g)  # Output of generator
         Y_fake_gs = self.discriminator(H_gs)  # Output of supervisor
 
         # Using max E[log(D(G(z)))]

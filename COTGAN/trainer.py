@@ -236,6 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
     parser.add_argument('--dis_rnn_num_layers', type=int, default=2)
     parser.add_argument('--dis_rnn_hidden_dim', type=int, default=64)
+    parser.add_argument('--J_dim',              type=int, default=10)
     parser.add_argument('--hidden_dim',         type=int, default=64*2)
     parser.add_argument('--num_hidden_layers',  type=int, default=3)
     parser.add_argument('--Z_dim',              type=int, default=100)
