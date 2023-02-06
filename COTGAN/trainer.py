@@ -47,7 +47,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
     model.to(device)
 
-    x_sw = torch.concat([x for x, _ in dataloader]).detach_().cpu()
+    x_sw = torch.concat([x for x in dataloader]).detach_().cpu()
     n_samples = len(x_sw)
     fixed_Z_mb = torch.randn(n_samples, max_seq_len, Z_dim, device=device)
 
@@ -55,7 +55,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     G_loss = 0
     D_loss = 0
     for epoch in logger:
-        for X, _ in dataloader:
+        for X in dataloader:
             X_mb, X_mb_p = torch.split(X, batch_size, dim=0)
             X_mb = X_mb.to(device)
             X_mb_p = X_mb_p.to(device)

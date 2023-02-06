@@ -119,28 +119,21 @@ class DatasetSinus(torch.utils.data.Dataset):
                                           self.s1_freq, self.s2_freq, self.s1_phase, self.s2_phase)
         self.X_scaler = minmaxscaler()
         self.X = self.X_scaler.fit_transform(self.X_raw)
-        self.T = [x.size(0) for x in self.X]
-        # Move X and T to GPU
-        self.X = self.X.to(torch.float32).to(device)
 
-        self.T = torch.LongTensor(self.T).to(device)
+        self.X = self.X.to(torch.float32).to(device)
 
     def __len__(self):
         return len(self.X)
 
     def __getitem__(self, idx):
-        return self.X[idx].float(), self.T[idx]
+        return self.X[idx].float()
 
-    def collate_fn(self, batch):
-        """Minibatch sampling
-        """
-        # Pad sequences to max length
-        X_mb = [X for X in batch[0]]
+    def get_params(self):
+        # return the parameters of the dataset with lists as type string
+        return {"alpha": self.alpha, "noise": self.noise,
+            "s1_freq": str(self.s1_freq), "s2_freq": str(self.s2_freq),
+            "s1_phase": str(self.s1_phase), "s2_phase": str(self.s2_phase)}
 
-        # The actual length of each data
-        T_mb = [T for T in batch[1]]
-
-        return X_mb, T_mb
 
 
 class DatasetStocks(torch.utils.data.Dataset):
@@ -174,6 +167,54 @@ class DatasetStocks(torch.utils.data.Dataset):
         T_mb = [T for T in batch[1]]
 
         return X_mb, T_mb
+
+
+# create a dataset of soliton waves
+
+class DatasetSoliton(torch.utils.data.Dataset):
+    def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu"):
+        self.t_range = t_range # [0, 6]
+        self.c_range = c_range # [0.5, 2]
+        self.P = P # period
+        self.n_samples = n_samples
+        self.t_steps = t_steps
+        self.spatial_len = spatial_len # M
+        self.data = self.create_soliton_dataset_torch()
+        self.data = self.data.to(device)
+
+    def __len__(self):
+        return self.n_samples
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+    def get_params(self):
+        # return the parameters of the dataset with lists as string
+        return {"t_range": str(self.t_range), "c_range": str(self.c_range), "P": self.P,
+                "t_steps": self.t_steps, "spatial_len": self.spatial_len}
+
+
+    def create_soliton_dataset_torch(self):
+        sech = lambda a: 1/torch.cosh(a) # sech isn't defined in NumPy
+        u_soliton_t = lambda x, t, c, P: 1/2*c*sech(torch.abs((x-c*t) % P - P/2))**2
+
+        def grid(P, M):
+            dx = P/M
+            x = torch.linspace(0, P-dx, M)
+            return x, dx
+
+        data = torch.zeros((self.n_samples, self.t_steps, self.spatial_len))
+        # random speed =c
+        c_arr = torch.FloatTensor(self.n_samples).uniform_(self.c_range[0], self.c_range[1])
+        t = torch.linspace(self.t_range[0], self.t_range[1], self.t_steps)
+        x, dx = grid(self.P, self.spatial_len)
+        x += self.P/4 # start the wave at x=5
+        for i in range(self.n_samples):
+            c = c_arr[i]
+            u = u_soliton_t(x, t[:, None], c, self.P)
+            data[i] = u
+        return data
+
 
 
 #######################################################################
@@ -326,7 +367,7 @@ def modeCollapseEvaluator(ori_data, generated_data):
 
 def log_visualizations(dataset, genereted_data, run):
     """Logging visualization results"""
-    r = np.array([data[0].numpy() for data in dataset])
+    r = np.array([data.numpy() for data in dataset])
     f_pca = visualization(r, genereted_data, 'pca')
     run["PCA"].upload(f_pca)
     plt.close(f_pca)
