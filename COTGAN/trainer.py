@@ -141,25 +141,26 @@ def cotgan_generator(model, params, eval=False):
     print("Done")
     return generated_data.cpu().numpy()
 
-def create_dataset(dataset, n_samples, p):
+def create_dataset(dataset, n_samples, p, device="cpu"):
     if dataset == "sinus":
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
-                            alpha=p["alpha"], noise=p["noise"], device=p["device"])
+                            alpha=p["alpha"], noise=p["noise"], device=device)
     elif dataset == "soliton":
         t_range = [0, 6]
         c_range = [0.5, 2]
         return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
                               t_steps=p["t_steps"], t_range=t_range,
-                              c_range=c_range, device=p["device"])
+                              c_range=c_range, device=device)
     else:
         raise NotImplementedError
 
 def load_dataset_and_train(params):
     seed = params["seed"]
+    device = params["device"]
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    trainset = create_dataset(dataset=params["dataset"],n_samples=params["trainset_size"], p=params)
+    trainset = create_dataset(dataset=params["dataset"],n_samples=params["trainset_size"], p=params, device=device)
     testset = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"],  p=params)
     #trainset = DatasetSinus(num=trainset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device=device)
     #testset = DatasetSinus(num=testset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device="cpu")

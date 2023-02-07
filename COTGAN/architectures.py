@@ -175,7 +175,7 @@ class SolitonDiscriminator(nn.Module):
             self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim * 2))
         self.dis_cnn.append(nn.LeakyReLU())
         self.dis_cnn = nn.Sequential(*self.dis_cnn)
-
+        #input_dim = self.hidden_dim * 2
         self.dis_rnn = nn.GRU(input_size = self.hidden_dim * 2 * self.feature_dim,
                                 hidden_size=self.dis_rnn_hidden_dim,
                                 num_layers=1,
