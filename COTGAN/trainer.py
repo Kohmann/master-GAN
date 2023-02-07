@@ -91,14 +91,15 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                 with torch.no_grad():
                     # generate synthetic data and plot it
                     X_hat = model(z1=fixed_Z_mb, obj="inference")
-                    x_axis = np.arange(X_hat.size(dim=1))
+                    #x_axis = np.arange(max_seq_len)
                     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
 
                     for x in range(3):
                         for y in range(3):
-                            axs[x, y].plot(x_axis, X_hat[x * 3 + y].cpu().numpy())
+                            #print(f"X_hat[{x * 3 + y}].shape: {X_hat[x * 3 + y].shape}")
+                            axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
                             axs[x, y].set_ylim([0, 1])
-                            axs[x, y].set_yticklabels([])
+                            #axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
                     # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
