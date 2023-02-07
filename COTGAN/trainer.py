@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
 
-from utils import DatasetSinus, log_visualizations
+from utils import DatasetSinus, log_visualizations, DatasetSoliton
 import neptune.new as neptune
 
 from architectures import COTGAN
@@ -15,10 +15,10 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     n_epochs = params["n_epochs"]
     learning_rate = params["l_rate"]
     learning_rate_g = params["l_rate_g"]
-    device = params["device"]
     model_name = params["model_name"]
     max_seq_len = params["max_seq_len"]
     Z_dim = params["Z_dim"]
+    device = params["device"]
 
     # Prepare datasets
     dataloader = torch.utils.data.DataLoader(
@@ -141,22 +141,31 @@ def cotgan_generator(model, params, eval=False):
     print("Done")
     return generated_data.cpu().numpy()
 
+def create_dataset(dataset, n_samples, p):
+    if dataset == "sinus":
+        return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
+                            alpha=p["alpha"], noise=p["noise"], device=p["device"])
+    elif dataset == "soliton":
+        t_range = [0, 6]
+        c_range = [0.5, 2]
+        return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
+                              t_steps=p["t_steps"], t_range=t_range,
+                              c_range=c_range, device=p["device"])
+    else:
+        raise NotImplementedError
+
 def load_dataset_and_train(params):
     seed = params["seed"]
-    alpha = params["alpha"]
-    trainset_size = params["trainset_size"]
-    testset_size = params["testset_size"]
-    max_seq_len = params["max_seq_len"]
-    device = params["device"]
-    noise = 0
     np.random.seed(seed)
     torch.manual_seed(seed)
 
+    trainset = create_dataset(dataset=params["dataset"],n_samples=params["trainset_size"], p=params)
+    testset = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"],  p=params)
+    #trainset = DatasetSinus(num=trainset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device=device)
+    #testset = DatasetSinus(num=testset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device="cpu")
 
-    trainset = DatasetSinus(num=trainset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device=device)
-    testset = DatasetSinus(num=testset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device="cpu")
-
-    print("Num real samples:", len(testset))
+    print("Num real train samples:", len(testset))
+    print("Num real test  samples:", len(testset))
 
     # Start logger
     run = neptune.init_run(
@@ -170,14 +179,11 @@ def load_dataset_and_train(params):
     )
 
     run["parameters"] = params
-    run["dataset"] = {"alpha": alpha, "noise": noise,
-                      "s1_freq": trainset.s1_freq, "s1_phase": trainset.s1_phase,
-                      "s2_freq": trainset.s2_freq, "s2_phase": trainset.s2_phase}
+    run["dataset"] = trainset.get_params()
 
     # Initialize model and train
     model = COTGAN(params)
     cotgan_trainer(model, trainset, params, val_dataset=testset, neptune_logger=run, continue_training=False)
-
 
     ### Perform tests on the trained model ###
 
@@ -190,12 +196,22 @@ def load_dataset_and_train(params):
     from metrics import compare_sin3_generation, sw_approx
     np.random.seed(seed + 1)
     torch.manual_seed(seed + 1)
-    testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise,
-                            device="cpu")
+
+    if params["dataset"] == "sines":
+        testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
+    elif params["dataset"] == "soliton":
+        testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
+    else:
+        raise ValueError("testset2 not defined")
+
+    # testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise, device="cpu")
     fake_data = cotgan_generator(model, params)
 
-    mse_error = compare_sin3_generation(fake_data, alpha, noise)
-    print(f"MSE Error: {mse_error:.5f}")
+    if params["dataset"] == "sines":
+        mse_error = compare_sin3_generation(fake_data, 0.7, 0)
+        print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
+        run["numeric_results/sin3_generation_MSE_loss"] = mse_error
+
     x = torch.tensor(fake_data)
     y = testset[:][0]
     y_2 = testset2[:][0]
@@ -204,9 +220,8 @@ def load_dataset_and_train(params):
     sw = sw_approx(y, x)
 
     run["numeric_results/num_test_samples"] = len(testset)
-    run["numeric_results/sin3_generation_MSE_loss"] = mse_error
-    run["numeric_results/SW"] = sw#.item()
-    run["numeric_results/SW_baseline"] = sw_baseline#.item()
+    run["numeric_results/SW"] = sw  # .item()
+    run["numeric_results/SW_baseline"] = sw_baseline  # .item()
     run.stop()
 
 
@@ -215,12 +230,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='cotgan')
 
     # Dataset params
-    parser.add_argument('--dataset',      type=str,   default='sinus', choices=['sinus'])
+    parser.add_argument('--dataset',      type=str,   default='sinus', choices=['sinus', 'soliton'])
+    # For sinus
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
-    parser.add_argument('--alpha',        type=float, default=0.7) # exponential decay
+    parser.add_argument('--alpha',        type=float, default=0.7)
+    parser.add_argument('--noise',        type=float, default=0.0)
+    # For soliton
+    parser.add_argument('--P',            type=int,   default=20)
+    parser.add_argument('--spatial_len',  type=int,   default=50)
+    parser.add_argument('--t_steps',      type=int, default=5)
+    #parser.add_argument('--t_range',      type=float, default=1.0) # Hard coded
+    #parser.add_argument('--c_range',      type=float, default=1.0) # Hard coded
+
+    # Dataset sizes
     parser.add_argument('--trainset_size',type=int,   default=32*2*24)
-    parser.add_argument('--testset_size', type=int,   default=32*2*12)
+    parser.add_argument('--testset_size', type=int,   default=32*2*24)
 
     # Hyperparameters
     parser.add_argument('--model_name', type=str,   default='model_cotgan.pt')
@@ -248,11 +273,16 @@ if __name__ == '__main__':
     parser.add_argument('--sinkhorn_l',       type=int,   default=100)
     parser.add_argument('--reg_lam',          type=float, default=0.01)
     # Other
-    parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu', 'mps'])
+    parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu'])
     parser.add_argument('--seed',   type=int, default=1)
 
 
 
     args = parser.parse_args()
-    print(vars(args), "\n\n")
-    load_dataset_and_train(vars(args))
+    args = vars(args)
+    if args["dataset"] == "soliton":
+        args["max_seq_len"] = args["t_steps"]
+        args["feature_dim"] = args["spatial_len"]
+        # TODO (Fix this issue properly)
+
+    load_dataset_and_train(args)

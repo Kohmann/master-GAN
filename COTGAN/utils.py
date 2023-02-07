@@ -131,8 +131,8 @@ class DatasetSinus(torch.utils.data.Dataset):
     def get_params(self):
         # return the parameters of the dataset with lists as type string
         return {"alpha": self.alpha, "noise": self.noise,
-            "s1_freq": str(self.s1_freq), "s2_freq": str(self.s2_freq),
-            "s1_phase": str(self.s1_phase), "s2_phase": str(self.s2_phase)}
+                "s1_freq": self.s1_freq, "s2_freq": self.s2_freq,
+                "s1_phase": self.s1_phase, "s2_phase": self.s2_phase}
 
 
 
@@ -190,7 +190,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
 
     def get_params(self):
         # return the parameters of the dataset with lists as string
-        return {"t_range": str(self.t_range), "c_range": str(self.c_range), "P": self.P,
+        return {"t_range": self.t_range, "c_range": self.c_range, "P": self.P,
                 "t_steps": self.t_steps, "spatial_len": self.spatial_len}
 
 
