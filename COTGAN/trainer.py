@@ -106,8 +106,8 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
                     if params["dataset"] == "soliton":
                         fake = torch.tensor(X_hat)
-                        c_fake = fake[:, 0, :].max(dim=1)[0]
-                        c_real = x_sw[:, 0, :].max(dim=1)[0]
+                        c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
+                        c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
                         p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
                         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
                         neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
