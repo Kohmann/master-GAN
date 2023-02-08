@@ -45,8 +45,8 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     #disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.7)
     #gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_opt,       step_size=step_size, gamma=0.7)
 
+    Z_dist = torch.distributions.normal.Normal(0, 1) if params["Z_dist"] == "normal" else torch.distributions.uniform.Uniform(-1, 1)
     model.to(device)
-
     x_sw = dataset[:].detach().cpu()
 
     n_samples = len(x_sw)
@@ -61,7 +61,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
             X_mb = X_mb.to(device)
             X_mb_p = X_mb_p.to(device)
 
-            Z_mb = torch.randn(batch_size, max_seq_len, Z_dim, device=device)
+            Z_mb =   torch.randn(batch_size, max_seq_len, Z_dim, device=device)
             Z_mb_p = torch.randn(batch_size, max_seq_len, Z_dim, device=device)
 
             # Train discriminator
@@ -117,10 +117,6 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
                         neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
-
-
-
-
     # save model
     torch.save(model.state_dict(), f"./models/{model_name}")
 
@@ -149,7 +145,7 @@ def cotgan_generator(model, params, eval=False):
     model.eval()
     with torch.no_grad():
         # Generate fake data
-        Z = torch.rand((trainset_size, max_seq_len, Z_dim), device=device)
+        Z = torch.randn((trainset_size, max_seq_len, Z_dim), device=device)
         generated_data = model(Z, obj="inference")
     print("Done")
     return generated_data.cpu().numpy()
@@ -206,9 +202,6 @@ def load_dataset_and_train(params):
     run["model_checkpoint"].upload("./models/" + params["model_name"])
 
     from metrics import compare_sin3_generation, sw_approx
-    np.random.seed(seed + 1)
-    torch.manual_seed(seed + 1)
-
 
     testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
 
