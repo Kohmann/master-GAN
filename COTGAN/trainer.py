@@ -103,8 +103,9 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                             #axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
-
                     neptune_logger["generated_image"].log(fig)
+                    plt.close(fig)
+
                     neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1),
                                                        X_hat.view(n_samples * max_seq_len, -1)))
 
@@ -117,7 +118,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                         neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
 
-                    plt.close(fig)
+
 
 
     # save model
@@ -218,6 +219,18 @@ def load_dataset_and_train(params):
         mse_error = compare_sin3_generation(fake_data, 0.7, 0)
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
+
+    if params["dataset"] == "soliton":
+        fake = torch.tensor(fake_data)
+        c_fake = fake[:, 0, :].max(dim=1)[0]
+        c_real = testset[:][:, 0, :].max(dim=1)[0]
+        run["numeric_results/c_mode_collapse"] = two_sample_kolmogorov_smirnov(c_real, c_fake)
+        run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
+        fig = plt.figure(figsize=(7, 5))
+        plt.hist(2. * c_fake, bins=100, density=True)
+        plt.xlim(0.5, 2)
+        run["c_fake_distribution"].upload(fig)
+        plt.close(fig)
 
     n_samples = params["testset_size"]
     max_seq_len = fake_data.shape[1]
