@@ -324,7 +324,6 @@ def visualization(ori_data, generated_data, analysis):
         # plt.show()
         return f
 
-
 def modeCollapseEvaluator(ori_data, generated_data):
     # Analysis sample size (for faster computation)
     anal_sample_no = min([1000, len(ori_data)])

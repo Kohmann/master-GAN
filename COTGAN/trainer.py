@@ -7,7 +7,7 @@ from utils import DatasetSinus, log_visualizations, DatasetSoliton
 import neptune.new as neptune
 
 from architectures import COTGAN
-from metrics import sw_approx
+from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov
 
 def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None, continue_training=False):
 
@@ -47,7 +47,8 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
     model.to(device)
 
-    x_sw = torch.concat([x for x in dataloader]).detach_().cpu()
+    x_sw = dataset[:].detach()
+
     n_samples = len(x_sw)
     fixed_Z_mb = torch.randn(n_samples, max_seq_len, Z_dim, device=device)
 
@@ -86,8 +87,9 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
         if neptune_logger is not None:
             neptune_logger["train/Generator"].log(G_loss)
             neptune_logger["train/Discriminator"].log(-D_loss)
-            neptune_logger["train/martingale_regularization"].log(-(G_loss-D_loss))
-            if (epoch + 1)  > 0: # (epoch + 1) % 10 == 0:
+            neptune_logger["train/martingale_regularization"].log((G_loss-D_loss))
+
+            if (epoch + 1)  > 0: # (epoch + 1) % 10 == 0: #
                 with torch.no_grad():
                     # generate synthetic data and plot it
                     X_hat = model(z1=fixed_Z_mb, obj="inference")
@@ -96,17 +98,24 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
                     for x in range(3):
                         for y in range(3):
-                            #print(f"X_hat[{x * 3 + y}].shape: {X_hat[x * 3 + y].shape}")
                             axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
                             axs[x, y].set_ylim([0, 1])
                             #axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
-                    # fig.savefig('./images/data_at_epoch_{:04d}.png'.format(epoch))
-                    # neptune_logger["generated_image"].upload(fig)
+
+                    if params["dataset"] == "soliton":
+                        fake = torch.tensor(X_hat)
+                        c_fake = fake[:, 0, :].max(dim=1)[0]
+                        c_real = x_sw[:, 0, :].max(dim=1)[0]
+                        p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
+                        neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
+                        neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
+
                     neptune_logger["generated_image"].log(fig)
                     neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
                     plt.close(fig)
+
 
     # save model
     torch.save(model.state_dict(), f"./models/{model_name}")
@@ -162,8 +171,6 @@ def load_dataset_and_train(params):
 
     trainset = create_dataset(dataset=params["dataset"],n_samples=params["trainset_size"], p=params, device=device)
     testset = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"],  p=params)
-    #trainset = DatasetSinus(num=trainset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device=device)
-    #testset = DatasetSinus(num=testset_size, seq_len=max_seq_len, alpha=alpha, noise=noise, device="cpu")
 
     print("Num real train samples:", len(testset))
     print("Num real test  samples:", len(testset))
@@ -198,12 +205,8 @@ def load_dataset_and_train(params):
     np.random.seed(seed + 1)
     torch.manual_seed(seed + 1)
 
-    if params["dataset"] == "sines":
-        testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
-    elif params["dataset"] == "soliton":
-        testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
-    else:
-        raise ValueError("testset2 not defined")
+
+    testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
 
     # testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise, device="cpu")
     fake_data = cotgan_generator(model, params)
@@ -214,8 +217,8 @@ def load_dataset_and_train(params):
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
     x = torch.tensor(fake_data)
-    y = testset[:][0]
-    y_2 = testset2[:][0]
+    y = testset[:]
+    y_2 = testset2[:]
 
     sw_baseline = sw_approx(y, y_2)
     sw = sw_approx(y, x)

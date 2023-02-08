@@ -19,6 +19,27 @@ def compare_sin3_generation(fake_data, alpha, noise):
     return mse_error
 
 
+from scipy.stats import ks_2samp
+def two_sample_kolmogorov_smirnov(x, y):
+
+    """Two sample Kolmogorov-Smirnov test which calculates if the samples are being drawn from the same distribution,
+         p-value less than 0.05 means that the samples are not from the same distribution.
+    Args:
+        x (torch.Tensor): (n_samples, )
+        y (torch.Tensor): (n_samples, )
+    :returns: p_value
+    """
+    return ks_2samp(x, y)[1]
+
+def mae_height_diff(data):
+    """Mean absolute error between the max height of the first wave and all other preceding waves of soliton data
+    Args:
+        data (torch.Tensor): (n_samples, t_steps, spatial_len)
+    """
+    if type(data) != torch.Tensor:
+        raise TypeError('Data must be a torch.Tensor')
+    return (data.max(dim=2)[0] - data[:, 0, :, None].max(dim=1)[0]).abs().mean()
+
 from geomloss import SamplesLoss
 
 
