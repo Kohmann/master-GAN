@@ -104,6 +104,9 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
 
+                    neptune_logger["generated_image"].log(fig)
+                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
+
                     if params["dataset"] == "soliton":
                         fake = torch.tensor(X_hat)
                         c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
@@ -112,8 +115,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
                         neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
-                    neptune_logger["generated_image"].log(fig)
-                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
+
                     plt.close(fig)
 
 
