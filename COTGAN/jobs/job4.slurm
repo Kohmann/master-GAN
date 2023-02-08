@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name="cotgan_tuning"
+#SBATCH --job-name="cotgan_tune"
 #SBATCH --output=test.out
 #SBATCH --mail-user=eivind.kohmann@gmail.com
 #SBATCH --mail-type=ALL
@@ -29,4 +29,4 @@ module load Python/3.8.6-GCCcore-10.2.0
 
 pip install -r requirements.txt
 
-python3 trainer.py --n_epochs 800 --l_rate 0.001 --batch_size 32 --max_seq_len 100 --trainset_size 1536 --gen_rnn_num_layers 2 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 2 --hidden_dim 64 --num_hidden_layers 3 --Z_dim 10 --sinkhorn_eps 0.8 --sinkhorn_l 100 --reg_lam 0.01 --device cuda --seed 1
+python3 trainer.py --n_epochs 200 --batch_size 32 --l_rate 0.001 --l_rate_g 0.001 --reg_lam 0.01 --sinkhorn_eps 0.8 --dataset soliton --spatial_len 50 --t_steps 10 --P 20 --trainset_size 1536 --testset_size 1536 --gen_rnn_num_layers 2 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 2 --dis_rnn_hidden_dim 64 --hidden_dim 64 --num_hidden_layers 3 --Z_dim 10 --J_dim 32 --device cuda
