@@ -47,7 +47,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
     model.to(device)
 
-    x_sw = dataset[:].detach()
+    x_sw = dataset[:].detach().cpu()
 
     n_samples = len(x_sw)
     fixed_Z_mb = torch.randn(n_samples, max_seq_len, Z_dim, device=device)
