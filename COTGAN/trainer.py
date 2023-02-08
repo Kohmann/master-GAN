@@ -105,10 +105,11 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
 
                     neptune_logger["generated_image"].log(fig)
-                    neptune_logger["SW"].log(sw_approx(x_sw, X_hat))
+                    neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1),
+                                                       X_hat.view(n_samples * max_seq_len, -1)))
 
                     if params["dataset"] == "soliton":
-                        fake = torch.tensor(X_hat)
+                        fake = torch.tensor(X_hat).detach()
                         c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
                         c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
                         p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
@@ -218,9 +219,11 @@ def load_dataset_and_train(params):
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
-    x = torch.tensor(fake_data)
-    y = testset[:]
-    y_2 = testset2[:]
+    n_samples = params["testset_size"]
+    max_seq_len = fake_data.shape[1]
+    x = torch.tensor(fake_data).view(n_samples * max_seq_len, -1)
+    y = testset[:].view(n_samples * max_seq_len, -1)
+    y_2 = testset2[:].view(n_samples * max_seq_len, -1)
 
     sw_baseline = sw_approx(y, y_2)
     sw = sw_approx(y, x)
