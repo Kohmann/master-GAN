@@ -45,7 +45,7 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     #disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.7)
     #gen_scheduler = torch.optim.lr_scheduler.StepLR(gen_opt,       step_size=step_size, gamma=0.7)
 
-    Z_dist = torch.distributions.normal.Normal(0, 1) if params["Z_dist"] == "normal" else torch.distributions.uniform.Uniform(-1, 1)
+    #Z_dist = torch.distributions.normal.Normal(0, 1) if params["Z_dist"] == "normal" else torch.distributions.uniform.Uniform(-1, 1)
     model.to(device)
     x_sw = dataset[:].detach().cpu()
 

@@ -192,8 +192,6 @@ class DatasetSoliton(torch.utils.data.Dataset):
         # return the parameters of the dataset with lists as string
         return {"t_range": self.t_range, "c_range": self.c_range, "P": self.P,
                 "t_steps": self.t_steps, "spatial_len": self.spatial_len}
-
-
     def create_soliton_dataset_torch(self):
         sech = lambda a: 1/torch.cosh(a) # sech isn't defined in NumPy
         u_soliton_t = lambda x, t, c, P: 1/2*c*sech(torch.abs((x-c*t) % P - P/2))**2
@@ -205,7 +203,8 @@ class DatasetSoliton(torch.utils.data.Dataset):
 
         data = torch.zeros((self.n_samples, self.t_steps, self.spatial_len))
         # random speed =c
-        c_arr = torch.FloatTensor(self.n_samples).uniform_(self.c_range[0], self.c_range[1])
+        # Uniformly distributed values between c_range[0] and c_range[1]
+        c_arr = torch.rand(self.n_samples) * (self.c_range[1] - self.c_range[0]) + self.c_range[0]
         t = torch.linspace(self.t_range[0], self.t_range[1], self.t_steps)
         x, dx = grid(self.P, self.spatial_len)
         x += self.P/4 # start the wave at x=5
