@@ -152,7 +152,7 @@ def cotgan_generator(model, params, eval=False):
     return generated_data.cpu().numpy()
 
 def create_dataset(dataset, n_samples, p, device="cpu"):
-    if dataset == "sinus":
+    if "sinus" in dataset:
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)
     elif "soliton" in dataset:
@@ -209,17 +209,19 @@ def load_dataset_and_train(params):
     # testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise, device="cpu")
     fake_data = cotgan_generator(model, params)
 
-    if params["dataset"] == "sines":
+    if "sines" in params["dataset"]:
         mse_error = compare_sin3_generation(fake_data, 0.7, 0)
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
-    if params["dataset"] == "soliton":
+    if "soliton" in params["dataset"]:
         fake = torch.tensor(fake_data)
         c_fake = fake[:, 0, :].max(dim=1)[0]
         c_real = testset[:][:, 0, :].max(dim=1)[0]
         run["numeric_results/c_mode_collapse"] = two_sample_kolmogorov_smirnov(c_real, c_fake)
-        run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
+        if params["difficulty"] == "easy":
+            run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
+        #run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
         fig = plt.figure(figsize=(7, 5))
         plt.hist(2. * c_fake, bins=100, density=True)
         plt.xlim(0.5, 2)
