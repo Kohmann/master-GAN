@@ -34,12 +34,12 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate_g, betas=(beta1, beta2))
     # Schedulers (Optional)
+    print("Using use_opt_scheduler:", use_opt_scheduler)
     if use_opt_scheduler:
         step_size = n_epochs // 3
         disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.8)
         disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.8)
         gen_scheduler    = torch.optim.lr_scheduler.StepLR(gen_opt,    step_size=step_size, gamma=0.8)
-        combined_scheduler = torch.optim.lr_scheduler.ChainedScheduler([disc_h_scheduler, disc_m_scheduler, gen_scheduler])
 
     model.to(device)
     x_sw = dataset[:].detach().cpu()
@@ -76,7 +76,9 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
             # Scheduler update
             if use_opt_scheduler:
-                combined_scheduler.step()
+                disc_h_scheduler.step()
+                disc_m_scheduler.step()
+                gen_scheduler.step()
 
         G_loss = G_loss.detach().cpu()
         D_loss = D_loss.detach().cpu()

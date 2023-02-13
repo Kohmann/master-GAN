@@ -29,4 +29,4 @@ module load Python/3.8.6-GCCcore-10.2.0
 
 pip install -r requirements.txt
 
-python3 trainer.py --n_epochs 300 --batch_size 64 --l_rate 0.01 --l_rate_g 0.01 --use_opt_scheduler True --reg_lam 0.01 --sinkhorn_eps 0.8 --dataset soliton --spatial_len 50 --t_steps 50 --P 20 --trainset_size 1536 --testset_size 1536 --gen_rnn_num_layers 2 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 2 --dis_rnn_hidden_dim 64 --hidden_dim 64 --num_hidden_layers 3 --Z_dim 10 --J_dim 32 --device cuda
+python3 trainer.py --n_epochs 300 --batch_size 64 --l_rate 0.01 --l_rate_g 0.01 --use_opt_scheduler True --reg_lam 0.01 --sinkhorn_eps 0.8 --dataset soliton --spatial_len 100 --t_steps 10 --P 20 --trainset_size 1536 --testset_size 1536 --gen_rnn_num_layers 2 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 2 --dis_rnn_hidden_dim 64 --hidden_dim 64 --num_hidden_layers 3 --Z_dim 10 --J_dim 32 --device cuda
