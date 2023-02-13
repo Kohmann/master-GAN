@@ -110,13 +110,14 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
                     neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1),
                                                        X_hat.view(n_samples * max_seq_len, -1)))
 
-                    if params["dataset"] == "soliton":
+                    if "soliton" in params["dataset"]:
                         fake = torch.tensor(X_hat).detach()
                         c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
                         c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
                         p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
                         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
-                        neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
+                        if params["difficulty"] == "medium":
+                            neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
     # save model
     torch.save(model.state_dict(), f"./models/{model_name}")
@@ -152,6 +153,7 @@ def cotgan_generator(model, params, eval=False):
     return generated_data.cpu().numpy()
 
 def create_dataset(dataset, n_samples, p, device="cpu"):
+    print(f"dataset: {dataset}")
     if "sinus" in dataset:
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)

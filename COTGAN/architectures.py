@@ -269,11 +269,11 @@ class COTGAN(nn.Module):
         self.sinkhorn_eps = args["sinkhorn_eps"]
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
-        if args["dataset"] == "sinus":
+        if "sinus" in args["dataset"]:
             self.generator = SinusGenerator(args=args)
             self.discriminator_h = SinusDiscriminator(args=args)
             self.discriminator_m = SinusDiscriminator(args=args)
-        elif args["dataset"] == "soliton":
+        elif "soliton" in args["dataset"]:
             self.generator = SolitonGenerator(args=args)
             self.discriminator_h = SolitonDiscriminator(args=args)
             self.discriminator_m = SolitonDiscriminator(args=args)
