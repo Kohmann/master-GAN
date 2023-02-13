@@ -171,16 +171,20 @@ class DatasetStocks(torch.utils.data.Dataset):
 
 # create a dataset of soliton waves
 
+# create a dataset of soliton waves
+
 class DatasetSoliton(torch.utils.data.Dataset):
-    def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu"):
+    def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
         self.t_range = t_range # [0, 6]
         self.c_range = c_range # [0.5, 2]
         self.P = P # period
         self.n_samples = n_samples
         self.t_steps = t_steps
         self.spatial_len = spatial_len # M
+        self.difficulty = difficulty # "easy" or "medium"
         self.data = self.create_soliton_dataset_torch()
         self.data = self.data.to(device)
+
 
     def __len__(self):
         return self.n_samples
@@ -194,7 +198,16 @@ class DatasetSoliton(torch.utils.data.Dataset):
                 "t_steps": self.t_steps, "spatial_len": self.spatial_len}
     def create_soliton_dataset_torch(self):
         sech = lambda a: 1/torch.cosh(a) # sech isn't defined in NumPy
-        u_soliton_t = lambda x, t, c, P: 1/2*c*sech(torch.abs((x-c*t) % P - P/2))**2
+        c_t = None
+        # specify the height of the wave as a function of time for a harder dataset
+        if self.difficulty == "easy":
+            c_t = lambda t: 0
+        elif self.difficulty == "medium":
+            c_t = lambda t: 0.025*(t-self.t_range[0])*(t-self.t_range[1]) # height of the wave as a function of time
+        else:
+            raise ValueError("difficulty must be 'easy' or 'medium'")
+
+        u_soliton_t = lambda x, t, c, P: 1/2*(c + c_t(t))*sech(torch.abs((x-c*t) % P - P/2))**2
 
         def grid(P, M):
             dx = P/M
@@ -213,6 +226,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
             u = u_soliton_t(x, t[:, None], c, self.P)
             data[i] = u
         return data
+
 
 
 
