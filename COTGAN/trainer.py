@@ -154,12 +154,12 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
     if dataset == "sinus":
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)
-    elif dataset == "soliton":
+    elif "soliton" in dataset:
         t_range = [0, 6]
         c_range = [0.5, 2]
         return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
                               t_steps=p["t_steps"], t_range=t_range,
-                              c_range=c_range, device=device)
+                              c_range=c_range, device=device, difficulty=p["difficulty"])
     else:
         raise NotImplementedError
 
@@ -254,7 +254,8 @@ if __name__ == '__main__':
     # For soliton
     parser.add_argument('--P',            type=int,   default=20)
     parser.add_argument('--spatial_len',  type=int,   default=50)
-    parser.add_argument('--t_steps',      type=int, default=5)
+    parser.add_argument('--t_steps',      type=int,   default=5)
+    parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
     #parser.add_argument('--t_range',      type=float, default=1.0) # Hard coded
     #parser.add_argument('--c_range',      type=float, default=1.0) # Hard coded
 
@@ -301,5 +302,7 @@ if __name__ == '__main__':
         args["max_seq_len"] = args["t_steps"]
         args["feature_dim"] = args["spatial_len"]
         # TODO (Fix this issue properly)
+        if args["difficulty"] == "medium":
+            args["dataset"] = "medium_soliton"
 
     load_dataset_and_train(args)
