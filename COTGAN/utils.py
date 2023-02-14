@@ -109,6 +109,8 @@ class DatasetSinus(torch.utils.data.Dataset):
         self.s2_freq = [4, 6] if s2_freq is None else s2_freq
         self.s1_phase = [-np.pi/2, 0] if s1_phase is None else s1_phase
         self.s2_phase = [0, np.pi/2] if s2_phase is None else s2_phase
+        self.alpha = alpha
+        self.noise = noise
 
 
         print(f"sin1 freq:{self.s1_freq}, phase:{self.s1_phase}")
