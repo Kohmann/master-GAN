@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name="cotgan_tune"
-#SBATCH --output=test.out
+#SBATCH --output=test3.out
 #SBATCH --mail-user=eivind.kohmann@gmail.com
 #SBATCH --mail-type=ALL
 
