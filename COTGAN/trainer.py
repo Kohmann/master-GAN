@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
+import random
 
 from utils import DatasetSinus, log_visualizations, DatasetSoliton
 import neptune.new as neptune
@@ -99,7 +100,10 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
                     for x in range(3):
                         for y in range(3):
-                            axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
+                            if params["dataset"] == "soliton":
+                                axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
+                            else:
+                                axs[x, y].plot(X_hat[x * 3 + y].cpu())
                             axs[x, y].set_ylim([0, 1])
                             #axs[x, y].set_yticklabels([])
 
@@ -158,8 +162,8 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)
     elif "soliton" in dataset:
-        t_range = [0, 6]
-        c_range = [0.5, 2]
+        t_range = [0, 6] if not p["t_range"] else p["t_range"]
+        c_range = [0.5, 2] if not p["c_range"] else p["c_range"]
         return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
                               t_steps=p["t_steps"], t_range=t_range,
                               c_range=c_range, device=device, difficulty=p["difficulty"])
@@ -169,8 +173,10 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
 def load_dataset_and_train(params):
     seed = params["seed"]
     device = params["device"]
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    random.seed(seed)  # python
+    np.random.seed(seed) # numpy
+    torch.manual_seed(seed) # pytorch
+
 
     trainset = create_dataset(dataset=params["dataset"],n_samples=params["trainset_size"], p=params, device=device)
     testset = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"],  p=params)
