@@ -99,8 +99,10 @@ def cotgan_trainer(model, dataset, params, val_dataset=None, neptune_logger=None
 
                     for x in range(3):
                         for y in range(3):
-                            axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
-                            axs[x, y].set_ylim([0, 1])
+                            if params["dataset"] == "soliton":
+                                axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
+                            else:
+                                axs[x, y].plot(X_hat[x * 3 + y].cpu())
                             #axs[x, y].set_yticklabels([])
 
                     fig.suptitle(f"Generation: {epoch}", fontsize=14)
