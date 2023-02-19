@@ -209,7 +209,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
         else:
             raise ValueError("difficulty must be 'easy' or 'medium'")
 
-        u_soliton_t = lambda x, t, c, P: 1/2*(c + c_t(t))*sech(torch.abs((x-c*t) % P - P/2))**2
+        u_soliton_t = lambda x, t, c: 1/2*(c + c_t(t))*sech(torch.abs((x-c*t + self.P/4) % self.P - self.P/2))**2
 
         def grid(P, M):
             dx = P/M
@@ -222,10 +222,10 @@ class DatasetSoliton(torch.utils.data.Dataset):
         c_arr = torch.rand(self.n_samples) * (self.c_range[1] - self.c_range[0]) + self.c_range[0]
         t = torch.linspace(self.t_range[0], self.t_range[1], self.t_steps)
         x, dx = grid(self.P, self.spatial_len)
-        x += self.P/4 # start the wave at x=5
+        #x += self.P/4 # start the wave at x=5
         for i in range(self.n_samples):
             c = c_arr[i]
-            u = u_soliton_t(x, t[:, None], c, self.P)
+            u = u_soliton_t(x, t[:, None], c)
             data[i] = u
         return data
 
