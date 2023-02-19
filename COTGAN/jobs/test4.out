@@ -1,0 +1,96 @@
+we are running from this directory: /cluster/home/eivinkoh/master-GAN/COTGAN/jobs
+ the name of the job is: cotgan_tune
+Th job ID is 16424758
+The job was run on these nodes: idun-04-03
+Number of nodes: 1
+We are using 1 cores
+We are using 1 cores per node
+Total of 1 cores
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: numpy in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 1)) (1.23.5)
+Requirement already satisfied: torch in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 2)) (1.13.0)
+Requirement already satisfied: matplotlib in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 3)) (3.6.2)
+Requirement already satisfied: neptune-client in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 4)) (0.16.16)
+Requirement already satisfied: umap-learn in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 5)) (0.5.3)
+Requirement already satisfied: geomloss in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from -r requirements.txt (line 6)) (0.2.5)
+Requirement already satisfied: nvidia-cuda-nvrtc-cu11==11.7.99 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from torch->-r requirements.txt (line 2)) (11.7.99)
+Requirement already satisfied: typing-extensions in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from torch->-r requirements.txt (line 2)) (4.4.0)
+Requirement already satisfied: nvidia-cudnn-cu11==8.5.0.96 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from torch->-r requirements.txt (line 2)) (8.5.0.96)
+Requirement already satisfied: nvidia-cuda-runtime-cu11==11.7.99 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from torch->-r requirements.txt (line 2)) (11.7.99)
+Requirement already satisfied: nvidia-cublas-cu11==11.10.3.66 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from torch->-r requirements.txt (line 2)) (11.10.3.66)
+Requirement already satisfied: contourpy>=1.0.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (1.0.6)
+Requirement already satisfied: pillow>=6.2.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (9.3.0)
+Requirement already satisfied: kiwisolver>=1.0.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (1.4.4)
+Requirement already satisfied: packaging>=20.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (20.4)
+Requirement already satisfied: pyparsing>=2.2.1 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (2.4.7)
+Requirement already satisfied: python-dateutil>=2.7 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (2.8.1)
+Requirement already satisfied: fonttools>=4.22.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (4.38.0)
+Requirement already satisfied: cycler>=0.10 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from matplotlib->-r requirements.txt (line 3)) (0.11.0)
+Requirement already satisfied: bravado<12.0.0,>=11.0.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (11.0.3)
+Requirement already satisfied: websocket-client!=1.0.0,>=0.35.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.5.0)
+Requirement already satisfied: psutil in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (5.7.2)
+Requirement already satisfied: future>=0.17.1 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (0.18.2)
+Requirement already satisfied: GitPython>=2.0.8 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (3.1.29)
+Requirement already satisfied: pandas in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.5.2)
+Requirement already satisfied: PyJWT in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (2.6.0)
+Requirement already satisfied: swagger-spec-validator>=2.7.4 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (3.0.3)
+Requirement already satisfied: click>=7.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (7.1.2)
+Requirement already satisfied: urllib3 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.25.11)
+Requirement already satisfied: requests-oauthlib>=1.0.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.3.1)
+Requirement already satisfied: requests>=2.20.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (2.24.0)
+Requirement already satisfied: oauthlib>=2.1.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (3.2.2)
+Requirement already satisfied: six>=1.12.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.15.0)
+Requirement already satisfied: boto3>=1.16.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from neptune-client->-r requirements.txt (line 4)) (1.26.60)
+Requirement already satisfied: tqdm in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from umap-learn->-r requirements.txt (line 5)) (4.64.1)
+Requirement already satisfied: numba>=0.49 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from umap-learn->-r requirements.txt (line 5)) (0.56.4)
+Requirement already satisfied: scipy>=1.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from umap-learn->-r requirements.txt (line 5)) (1.9.3)
+Requirement already satisfied: scikit-learn>=0.22 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from umap-learn->-r requirements.txt (line 5)) (1.2.1)
+Requirement already satisfied: pynndescent>=0.5 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from umap-learn->-r requirements.txt (line 5)) (0.5.8)
+Requirement already satisfied: setuptools in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from nvidia-cuda-runtime-cu11==11.7.99->torch->-r requirements.txt (line 2)) (50.3.0)
+Requirement already satisfied: wheel in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from nvidia-cuda-runtime-cu11==11.7.99->torch->-r requirements.txt (line 2)) (0.35.1)
+Requirement already satisfied: monotonic in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (1.6)
+Requirement already satisfied: bravado-core>=5.16.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (5.17.1)
+Requirement already satisfied: simplejson in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (3.17.2)
+Requirement already satisfied: pyyaml in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (6.0)
+Requirement already satisfied: msgpack in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (1.0.0)
+Requirement already satisfied: gitdb<5,>=4.0.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from GitPython>=2.0.8->neptune-client->-r requirements.txt (line 4)) (4.0.9)
+Requirement already satisfied: pytz>=2020.1 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from pandas->neptune-client->-r requirements.txt (line 4)) (2020.1)
+Requirement already satisfied: jsonschema in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from swagger-spec-validator>=2.7.4->neptune-client->-r requirements.txt (line 4)) (3.2.0)
+Requirement already satisfied: certifi>=2017.4.17 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from requests>=2.20.0->neptune-client->-r requirements.txt (line 4)) (2020.6.20)
+Requirement already satisfied: chardet<4,>=3.0.2 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from requests>=2.20.0->neptune-client->-r requirements.txt (line 4)) (3.0.4)
+Requirement already satisfied: idna<3,>=2.5 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from requests>=2.20.0->neptune-client->-r requirements.txt (line 4)) (2.10)
+Requirement already satisfied: s3transfer<0.7.0,>=0.6.0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from boto3>=1.16.0->neptune-client->-r requirements.txt (line 4)) (0.6.0)
+Requirement already satisfied: botocore<1.30.0,>=1.29.60 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from boto3>=1.16.0->neptune-client->-r requirements.txt (line 4)) (1.29.60)
+Requirement already satisfied: jmespath<2.0.0,>=0.7.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from boto3>=1.16.0->neptune-client->-r requirements.txt (line 4)) (1.0.1)
+Requirement already satisfied: importlib-metadata; python_version < "3.9" in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from numba>=0.49->umap-learn->-r requirements.txt (line 5)) (5.0.0)
+Requirement already satisfied: llvmlite<0.40,>=0.39.0dev0 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from numba>=0.49->umap-learn->-r requirements.txt (line 5)) (0.39.1)
+Requirement already satisfied: joblib>=1.1.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from scikit-learn>=0.22->umap-learn->-r requirements.txt (line 5)) (1.2.0)
+Requirement already satisfied: threadpoolctl>=2.0.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from scikit-learn>=0.22->umap-learn->-r requirements.txt (line 5)) (2.1.0)
+Requirement already satisfied: jsonref in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from bravado-core>=5.16.1->bravado<12.0.0,>=11.0.0->neptune-client->-r requirements.txt (line 4)) (1.1.0)
+Requirement already satisfied: smmap<6,>=3.0.1 in /cluster/home/eivinkoh/.local/lib/python3.8/site-packages (from gitdb<5,>=4.0.1->GitPython>=2.0.8->neptune-client->-r requirements.txt (line 4)) (5.0.0)
+Requirement already satisfied: attrs>=17.4.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from jsonschema->swagger-spec-validator>=2.7.4->neptune-client->-r requirements.txt (line 4)) (20.2.0)
+Requirement already satisfied: pyrsistent>=0.14.0 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from jsonschema->swagger-spec-validator>=2.7.4->neptune-client->-r requirements.txt (line 4)) (0.17.3)
+Requirement already satisfied: zipp>=0.5 in /cluster/apps/eb/software/Python/3.8.6-GCCcore-10.2.0/lib/python3.8/site-packages (from importlib-metadata; python_version < "3.9"->numba>=0.49->umap-learn->-r requirements.txt (line 5)) (3.3.0)
+dataset: sinus
+sin1 freq:[1, 3], phase:[-1.5707963267948966, 0]
+sin2 freq:[4, 6], phase:[0, 1.5707963267948966]
+dataset: sinus
+sin1 freq:[1, 3], phase:[-1.5707963267948966, 0]
+sin2 freq:[4, 6], phase:[0, 1.5707963267948966]
+Num real train samples: 1536
+Num real test  samples: 1536
+https://app.neptune.ai/kohmann/COTGAN/e/COT-280
+Traceback (most recent call last):
+  File "trainer.py", line 313, in <module>
+    load_dataset_and_train(args)
+  File "trainer.py", line 193, in load_dataset_and_train
+    run["dataset"] = trainset.get_params()
+  File "/cluster/home/eivinkoh/master-GAN/COTGAN/utils.py", line 133, in get_params
+    return {"alpha": self.alpha, "noise": self.noise,
+AttributeError: 'DatasetSinus' object has no attribute 'alpha'
+Shutting down background jobs, please wait a moment...
+Done!
+Waiting for the remaining 76 operations to synchronize with Neptune. Do not kill this process.
+All 76 operations synced, thanks for waiting!
+Explore the metadata in the Neptune app:
+https://app.neptune.ai/kohmann/COTGAN/e/COT-280

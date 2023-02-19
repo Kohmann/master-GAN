@@ -6,3 +6,12 @@ Number of nodes: 1
 We are using 1 cores
 We are using 1 cores per node
 Total of 1 cores
+slurmstepd: error: *** JOB 16423551 ON idun-04-06 CANCELLED AT 2023-02-13T18:57:38 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 16423551 STEPD TERMINATED ON idun-04-06 AT 2023-02-13T18:58:38 DUE TO JOB NOT ENDING WITH SIGNALS ***
+slurmstepd: error: Container 3721034 in cgroup plugin has 1 processes, giving up after 63 sec
+slurmstepd: error: *** JOB 16423555 ON idun-04-06 CANCELLED AT 2023-02-13T19:00:38 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 16423555 STEPD TERMINATED ON idun-04-06 AT 2023-02-13T19:01:38 DUE TO JOB NOT ENDING WITH SIGNALS ***
+slurmstepd: error: Container 3721070 in cgroup plugin has 1 processes, giving up after 63 sec
+slurmstepd: error: *** JOB 16424441 ON idun-04-06 CANCELLED AT 2023-02-13T19:16:38 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 16424441 STEPD TERMINATED ON idun-04-06 AT 2023-02-13T19:17:38 DUE TO JOB NOT ENDING WITH SIGNALS ***
+slurmstepd: error: Container 3721135 in cgroup plugin has 1 processes, giving up after 63 sec
