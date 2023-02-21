@@ -36,7 +36,7 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
         c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
         p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
-        if params["difficulty"] == "medium":
+        if params["difficulty"] == "easy":
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
 def cotgan_trainer(model, dataset, params, neptune_logger=None):
