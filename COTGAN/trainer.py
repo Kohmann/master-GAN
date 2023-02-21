@@ -449,13 +449,13 @@ def load_dataset_and_train(params):
 def evaluate_model(model, testset, run, params):
     n_samples = params["testset_size"]
 
-    gen_z = model.generate(n_samples)
+    gen_z = model.generate(n_samples).cpu()
 
     log_visualizations(testset, gen_z, run)  # log pca, tsne, umap, mode_collapse
     run["model_checkpoint"].upload("./models/" + params["model_name"])
 
     testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
-    fake_data = model.generate(n_samples)
+    fake_data = model.generate(n_samples).cpu()
 
     if "sines" in params["dataset"]:
         mse_error = compare_sin3_generation(fake_data, 0.7, 0)
