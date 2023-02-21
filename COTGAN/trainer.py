@@ -467,13 +467,13 @@ def evaluate_model(model, testset, run, params):
         fake = fake_data.clone().detach()
         c_fake = fake[:, 0, :].max(dim=1)[0]
         c_real = testset[:][:, 0, :].max(dim=1)[0]
-        run["numeric_results/c_mode_collapse"] = two_sample_kolmogorov_smirnov(c_real, c_fake)
+        p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
+        run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
         if params["difficulty"] == "easy":
             run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
-        # run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
         fig = plt.figure(figsize=(7, 5))
         plt.hist(2. * c_fake, bins=100, density=True)
-        plt.xlim(0.5, 2)
+        plt.xlim(0.5, 2) # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
         run["c_fake_distribution"].upload(fig)
         plt.close(fig)
 
