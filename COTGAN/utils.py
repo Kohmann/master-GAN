@@ -173,8 +173,6 @@ class DatasetStocks(torch.utils.data.Dataset):
 
 # create a dataset of soliton waves
 
-# create a dataset of soliton waves
-
 class DatasetSoliton(torch.utils.data.Dataset):
     def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
         self.t_range = t_range # [0, 6]
