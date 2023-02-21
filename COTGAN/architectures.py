@@ -261,84 +261,13 @@ class SolitonGenerator(nn.Module):
         out = self.gen_FC(x)
         return out
 
-class COTGAN2(nn.Module):
-    def __init__(self, args):
-        super(COTGAN, self).__init__()
-
-        #self.scaling_coef = args["scaling_coef"]
-        self.sinkhorn_eps = args["sinkhorn_eps"]
-        self.sinkhorn_l = args["sinkhorn_l"]
-        self.reg_lam = args["reg_lam"]
-        if "sinus" in args["dataset"]:
-            self.generator = SinusGenerator(args=args)
-            self.discriminator_h = SinusDiscriminator(args=args)
-            self.discriminator_m = SinusDiscriminator(args=args)
-        elif "soliton" in args["dataset"]:
-            self.generator = SolitonGenerator(args=args)
-            self.discriminator_h = SolitonDiscriminator(args=args)
-            self.discriminator_m = SolitonDiscriminator(args=args)
-
-    def __discriminator_loss(self, real_data, real_data_p, z1, z2):
-        fake_data = self.generator(z1).detach()
-        fake_data_p = self.generator(z2).detach()
-
-        # h_real = self.discriminator_h(real_data)
-        h_fake = self.discriminator_h(fake_data)
-
-        m_real = self.discriminator_m(real_data)
-        m_fake = self.discriminator_m(fake_data)
-
-        h_real_p = self.discriminator_h(real_data_p)
-        h_fake_p = self.discriminator_h(fake_data_p)
-
-        m_real_p = self.discriminator_m(real_data_p)
-        # m_fake_p = self.discriminator_m(fake_data_p)
-
-        mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
-                                                          real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
-                                                          self.sinkhorn_eps, self.sinkhorn_l)
-
-        pm = scale_invariante_martingale_regularization(m_real, reg_lam=self.reg_lam)
-
-        return -mixed_sinkhorn_loss + pm
-
-    def __generator_loss(self, real_data, real_data_p, z1, z2):
-        fake_data = self.generator(z1)
-        fake_data_p = self.generator(z2)
-
-        # h_real = self.discriminator_h(real_data)
-        h_fake = self.discriminator_h(fake_data)
-
-        m_real = self.discriminator_m(real_data)
-        m_fake = self.discriminator_m(fake_data)
-
-        h_real_p = self.discriminator_h(real_data_p)
-        h_fake_p = self.discriminator_h(fake_data_p)
-
-        m_real_p = self.discriminator_m(real_data_p)
-        # m_fake_p = self.discriminator_m(fake_data_p)
-
-        mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
-                                                          real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
-                                                          self.sinkhorn_eps, self.sinkhorn_l)
-        return mixed_sinkhorn_loss
-
-    def forward(self, z1, z2=None, x1=None, x2=None, obj="inference"):
-        if obj == "generator":
-            return self.__generator_loss(x1, x2, z1, z2)
-        elif obj == "discriminator":
-            return self.__discriminator_loss(x1, x2, z1, z2)
-        elif obj == "inference":
-            X_hat = self.generator(z1)
-            return X_hat.cpu().detach()
-        else:
-            raise ValueError("Invalid obj description. Must be in (generator, discriminator, inference)")
-
 class COTGAN(nn.Module):
     def __init__(self, args):
         super(COTGAN, self).__init__()
+        self.Z_dim = args["Z_dim"]
+        self.max_seq_len = args["max_seq_len"]
+        self.device = args["device"]
         self.batch_size = args["batch_size"]
-        #self.scaling_coef = args["scaling_coef"]
         self.sinkhorn_eps = args["sinkhorn_eps"]
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
@@ -396,6 +325,10 @@ class COTGAN(nn.Module):
                                                           self.sinkhorn_eps, self.sinkhorn_l)
         return mixed_sinkhorn_loss
 
+    def generate(self, N):
+        Z = torch.randn(N, self.max_seq_len, self.Z_dim, device=self.device)
+        X_hat = self.generator(Z)
+        return X_hat.cpu().detach()
     def forward(self, Z, X, obj="inference"):
         if obj == "generator":
             return self.__generator_loss(real_data=X[:self.batch_size], real_data_p=X[self.batch_size:],
@@ -695,6 +628,11 @@ class TimeGAN(torch.nn.Module):
         X_hat = self.recovery(H_hat)
         return X_hat
 
+    def generate(self, N):
+        Z = torch.randn(N, self.max_seq_len, self.Z_dim, device=self.device)
+        X_hat = self._inference(Z)
+        return X_hat.cpu().detach()
+
     def forward(self, X, Z, obj, gamma=1):
         """
         Args:
@@ -743,7 +681,6 @@ class TimeGAN(torch.nn.Module):
             return loss
 
         elif obj == "inference":
-
             X_hat = self._inference(Z)
             X_hat = X_hat.cpu().detach()
 
