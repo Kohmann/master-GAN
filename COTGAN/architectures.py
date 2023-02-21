@@ -338,7 +338,7 @@ class COTGAN(nn.Module):
                                          z1=Z[:self.batch_size], z2=Z[self.batch_size:])
         elif obj == "inference":
             X_hat = self.generator(Z)
-            return X_hat.cpu().detach()
+            return X_hat.detach()
         else:
             raise ValueError("Invalid obj description. Must be in (generator, discriminator, inference)")
 
@@ -631,7 +631,7 @@ class TimeGAN(torch.nn.Module):
     def generate(self, N):
         Z = torch.randn(N, self.max_seq_len, self.Z_dim, device=self.device)
         X_hat = self._inference(Z)
-        return X_hat.cpu().detach()
+        return X_hat.detach()
 
     def forward(self, X, Z, obj, gamma=1):
         """
@@ -649,7 +649,7 @@ class TimeGAN(torch.nn.Module):
             if X is None:
                 raise ValueError("`X` should be given")
 
-            X = torch.FloatTensor(X)
+            #X = torch.FloatTensor(X)
             X = X.to(self.device)
 
         if Z is not None:
@@ -682,7 +682,7 @@ class TimeGAN(torch.nn.Module):
 
         elif obj == "inference":
             X_hat = self._inference(Z)
-            X_hat = X_hat.cpu().detach()
+            X_hat = X_hat.detach()
 
             return X_hat
 

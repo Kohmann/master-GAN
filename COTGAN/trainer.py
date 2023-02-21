@@ -73,7 +73,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
         gen_scheduler    = torch.optim.lr_scheduler.StepLR(gen_opt,    step_size=step_size, gamma=0.8)
 
     model.to(device)
-    x_sw = dataset[:].detach().cpu()
+    x_sw = dataset[:].detach()
 
     fixed_Z_mb = torch.randn(len(x_sw), max_seq_len, Z_dim, device=device)
 
@@ -218,7 +218,7 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, params, neptune_logger=None):
 
-    x_sw = torch.concat([x for x in dataloader])
+    x_sw = dataloader[:].detach()
     n_samples = len(x_sw)
     fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
@@ -549,7 +549,7 @@ if __name__ == '__main__':
     parser.add_argument('--sinkhorn_l',       type=int,   default=100)
     parser.add_argument('--reg_lam',          type=float, default=0.01)
     # Other
-    parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu'])
+    parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu', 'mps'])
     parser.add_argument('--seed',   type=int, default=1)
 
 
