@@ -14,7 +14,6 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     n_samples = X_hat.size(0)
     max_seq_len = X_hat.size(1)
     fig, axs = plt.subplots(3, 3, figsize=(14, 10))
-    print(f"dataset: {params['dataset']}")
     for x in range(3):
         for y in range(3):
             if "soliton" in params["dataset"]:
@@ -106,8 +105,8 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
                 disc_m_scheduler.step()
                 gen_scheduler.step()
 
-        G_loss = G_loss.detach().cpu()
-        D_loss = D_loss.detach().cpu()
+        #G_loss = G_loss.detach()#.cpu()
+        #D_loss = D_loss.detach()#.cpu()
         logger.set_description(
             f"Epoch: {epoch}, G: {G_loss:.4f}, D: {-D_loss:.4f}"
         )
