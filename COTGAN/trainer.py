@@ -28,8 +28,8 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     neptune_logger["generated_image"].log(fig)
     plt.close(fig)
 
-    neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1),
-                                       X_hat.view(n_samples * max_seq_len, -1)))
+    neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1).cpu(),
+                                       X_hat.view(n_samples * max_seq_len, -1).cpu()))
 
     if "soliton" in params["dataset"]:
         fake = torch.tensor(X_hat).detach()
@@ -73,7 +73,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
         gen_scheduler    = torch.optim.lr_scheduler.StepLR(gen_opt,    step_size=step_size, gamma=0.8)
 
     model.to(device)
-    x_sw = dataset[:].detach()
+    x_sw = dataset[:].detach().cpu()
 
     fixed_Z_mb = torch.randn(len(x_sw), max_seq_len, Z_dim, device=device)
 
@@ -218,7 +218,7 @@ def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger
 def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
                   dis_thresh, params, neptune_logger=None):
 
-    x_sw = torch.concat([x for x in dataloader])
+    x_sw = torch.concat([x for x in dataloader]).detach().cpu()
     n_samples = len(x_sw)
     fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
     logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
