@@ -525,7 +525,7 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer',  type=str,   default='Adam')
     parser.add_argument('--beta1',      type=float, default=0.5)
     parser.add_argument('--beta2',      type=float, default=0.9)
-    parser.add_argument('--use_opt_scheduler', type=bool, default=False)
+    parser.add_argument('--use_opt_scheduler', type=str, default="NO", choices=["NO", "YES"])
 
     # COTGAN architecture params
     parser.add_argument('--rnn_type',           type=str, default='GRU', choices=['GRU', 'LSTM'])
@@ -537,12 +537,12 @@ if __name__ == '__main__':
     parser.add_argument('--hidden_dim',         type=int, default=64*2)
     parser.add_argument('--num_hidden_layers',  type=int, default=3)
     parser.add_argument('--Z_dim',              type=int, default=100)
-    parser.add_argument('--use_bn',             type=bool,default=False)
+    parser.add_argument('--use_bn',             type=str, default="NO", choices=["NO", "YES"])
 
     # TimeGAN params
     parser.add_argument('--num_layers', type=int, default=2)
     parser.add_argument('--dis_thresh', type=float, default=0.15)
-    parser.add_argument('--l_rate_ae', type=float, default=0.001)
+    parser.add_argument('--l_rate_ae',  type=float, default=0.001)
     # Loss params
     parser.add_argument('--scaling_coef',     type=float, default=1.0)
     parser.add_argument('--sinkhorn_eps',     type=float, default=0.8)
@@ -556,6 +556,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     args = vars(args)
+    args["use_bn"] = args["use_bn"] == "YES"
+    args["use_opt_scheduler"] = args["use_opt_scheduler"] == "YES"
     if args["dataset"] == "soliton":
         args["max_seq_len"] = args["t_steps"]
         args["feature_dim"] = args["spatial_len"]
