@@ -31,7 +31,7 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
                                        X_hat.view(n_samples * max_seq_len, -1).cpu()))
 
     if "soliton" in params["dataset"]:
-        fake = torch.tensor(X_hat).detach()
+        fake = X_hat.clone().detach()
         c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
         c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
         p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
@@ -257,9 +257,10 @@ def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs
         )
 
         if neptune_logger is not None:
-            neptune_logger["train/Joint/Embedding"].log(E_loss)
-            neptune_logger["train/Joint/Generator"].log(G_loss)
-            neptune_logger["train/Joint/Discriminator"].log(D_loss)
+            neptune_logger["train/Embedding"].log(E_loss)
+            neptune_logger["train/Generator"].log(G_loss)
+            neptune_logger["train/Discriminator"].log(D_loss)
+
 
             if (epoch + 1) > 0:
                 with torch.no_grad():
