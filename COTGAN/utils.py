@@ -181,6 +181,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
         self.n_samples = n_samples
         self.t_steps = t_steps
         self.spatial_len = spatial_len # M
+        self.dx = P / spatial_len
         self.difficulty = difficulty # "easy" or "medium"
         self.data = self.create_soliton_dataset_torch()
         self.data = self.data.to(device)
@@ -195,7 +196,8 @@ class DatasetSoliton(torch.utils.data.Dataset):
     def get_params(self):
         # return the parameters of the dataset with lists as string
         return {"t_range": self.t_range, "c_range": self.c_range, "P": self.P,
-                "t_steps": self.t_steps, "spatial_len": self.spatial_len}
+                "t_steps": self.t_steps, "spatial_len": self.spatial_len, "difficulty": self.difficulty,
+                "dx": self.dx}
     def create_soliton_dataset_torch(self):
         sech = lambda a: 1/torch.cosh(a) # sech isn't defined in NumPy
         c_t = None
@@ -227,6 +229,25 @@ class DatasetSoliton(torch.utils.data.Dataset):
             data[i] = u
         return data
 
+class DatasetTwoSolitons(torch.utils.data.Dataset):
+    def __init__(self, n_samples, P, t_range, c_range, N=100, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
+        self.t_range = t_range # [0, 6]
+        self.c_range = c_range # [0.5, 2]
+        self.P = P # period
+        self.M = spatial_len  # spacial resolution
+        self.N = N # temporal resolution
+        self.n_samples = n_samples
+        self.t_steps = t_steps
+
+
+    def __len__(self):
+        return self.n_samples
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+    def get_params(self):
+        # return the parameters of the dataset with lists as string
+        raise NotImplementedError
 
 
 

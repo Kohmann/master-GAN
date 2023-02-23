@@ -40,8 +40,26 @@ def mae_height_diff(data):
         raise TypeError('Data must be a torch.Tensor')
     return (data.max(dim=2)[0] - data[:, 0, :, None].max(dim=1)[0]).abs().mean()
 
-from geomloss import SamplesLoss
+def energy_conservation(u, dx, eta, gamma):
+    """
+    Returns the energy conservation error for the KdV equation
+    u: solution tensor of shape (batch_size, time_steps, M)
+    M: number of spatial points
+    dx: spatial step size
+    eta: model specific parameter
+    gamma: model specific parameter
+    :returns: energy conservation error tensor of shape (batch_size, time_steps) for each time step
+    """
+    M = u.size(-1)
+    device = u.device
+    e = torch.ones(M, device=device, dtype=torch.float)
+    Dp = .5 / dx * torch.sparse.spdiags(torch.stack([e, -e, e, -e]), torch.tensor([-M+1, -1, 1, M-1], device=device), (M, M)).to_dense()
+    H = lambda u: dx*torch.sum(-1/6*eta*u**3 + (.5*gamma**2*torch.matmul(Dp,u.transpose(1, 2)).transpose(1, 2)**2), dim=2)
+    Ht = H(u)
+    return torch.abs(Ht - Ht[:, 0, None])
 
+
+from geomloss import SamplesLoss
 
 def sinkhorn_distance(x, y, blur=0.01):
     """
@@ -56,7 +74,6 @@ def sinkhorn_distance(x, y, blur=0.01):
     sinkhorn = SamplesLoss(loss="sinkhorn", p=2, blur=0.05, scaling=0.95)
     return sinkhorn(x, y).detach()
 
-
 def MMD(x, y):
     """
     Maximum Mean Discrepancy between two samples x and y.
@@ -69,9 +86,6 @@ def MMD(x, y):
     # Define a Sinkhorn (~Wasserstein) loss between sampled measures
     MMD = SamplesLoss(loss="gaussian", p=2, blur=0.05)
     return MMD(x, y).detach()
-
-
-import torch
 
 
 def sw_approx(mu: torch.Tensor, nu: torch.Tensor):

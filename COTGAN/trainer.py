@@ -8,7 +8,9 @@ from utils import DatasetSinus, log_visualizations, DatasetSoliton
 import neptune.new as neptune
 
 from architectures import COTGAN, TimeGAN
-from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation
+from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation, \
+    energy_conservation
+
 
 def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     n_samples = X_hat.size(0)
@@ -38,6 +40,10 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
         neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
         if params["difficulty"] == "easy":
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
+
+        # Energy conservation
+        H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
+        neptune_logger["H_mean_error"].log(H_error.mean().item())
 
 def cotgan_trainer(model, dataset, params, neptune_logger=None):
 
@@ -477,6 +483,13 @@ def evaluate_model(model, testset, run, params):
         run["c_fake_distribution"].upload(fig)
         plt.close(fig)
 
+        # Energy related metrics
+        # Hamiltonian: energy conservation
+        #H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
+        #run["numeric_results/H_mean_error"] = H_error.mean().item()
+
+
+
 
     max_seq_len = fake_data.shape[1]
     x = fake_data.clone().detach().view(n_samples * max_seq_len, -1)
@@ -496,7 +509,8 @@ import argparse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='cotgan')
 
-    parser.add_argument('--model', type=str, default='timegan', choices=['cotgan', 'timegan'])
+    parser.add_argument('--model', type=str, default='cotgan', choices=['cotgan', 'timegan'])
+    parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     # Dataset params
     parser.add_argument('--dataset',      type=str,   default='soliton', choices=['sinus', 'soliton'])
     # For sinus
@@ -508,6 +522,8 @@ if __name__ == '__main__':
     parser.add_argument('--P',            type=int,   default=20)
     parser.add_argument('--spatial_len',  type=int,   default=50)
     parser.add_argument('--t_steps',      type=int,   default=5)
+    parser.add_argument('--eta',          type=float, default=6.0)
+    parser.add_argument('--gamma',        type=float, default=1.0)
     parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
     #parser.add_argument('--t_range',      type=float, default=1.0) # Hard coded
     #parser.add_argument('--c_range',      type=float, default=1.0) # Hard coded
@@ -517,8 +533,7 @@ if __name__ == '__main__':
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--model_name', type=str,   default='model_cotgan.pt')
-    parser.add_argument('--n_epochs',   type=int,   default=1)
+    parser.add_argument('--n_epochs',   type=int,   default=10)
     parser.add_argument('--l_rate',     type=float, default=0.001)
     parser.add_argument('--l_rate_g',   type=float, default=0.001)
     parser.add_argument('--batch_size', type=int,   default=32)
@@ -533,14 +548,14 @@ if __name__ == '__main__':
     parser.add_argument('--gen_rnn_hidden_dim', type=int, default=64)
     parser.add_argument('--dis_rnn_num_layers', type=int, default=2)
     parser.add_argument('--dis_rnn_hidden_dim', type=int, default=64)
-    parser.add_argument('--J_dim',              type=int, default=10)
-    parser.add_argument('--hidden_dim',         type=int, default=64*2)
-    parser.add_argument('--num_hidden_layers',  type=int, default=3)
-    parser.add_argument('--Z_dim',              type=int, default=100)
+    parser.add_argument('--J_dim',              type=int, default=32)
+    parser.add_argument('--hidden_dim',         type=int, default=64)
+    parser.add_argument('--num_hidden_layers',  type=int, default=2)
+    parser.add_argument('--Z_dim',              type=int, default=10)
     parser.add_argument('--use_bn',             type=str, default="False", choices=["True", "False"])
 
     # TimeGAN params
-    parser.add_argument('--num_layers', type=int, default=2)
+    parser.add_argument('--num_layers', type=int,   default=2)
     parser.add_argument('--dis_thresh', type=float, default=0.15)
     parser.add_argument('--l_rate_ae',  type=float, default=0.001)
     # Loss params
@@ -553,7 +568,6 @@ if __name__ == '__main__':
     parser.add_argument('--seed',   type=int, default=1)
 
 
-
     args = parser.parse_args()
     args = vars(args)
     args["use_bn"] = args["use_bn"] == "True"
@@ -561,6 +575,7 @@ if __name__ == '__main__':
     if args["dataset"] == "soliton":
         args["max_seq_len"] = args["t_steps"]
         args["feature_dim"] = args["spatial_len"]
+        args["dx"] = args["P"] / args["spatial_len"]
         # TODO (Fix this issue properly)
         if args["difficulty"] == "medium":
             args["dataset"] = "medium_soliton"
