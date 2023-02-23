@@ -360,7 +360,8 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)
     elif "soliton" in dataset:
-        t_range = [0, 6] if "t_range" not in p.keys() else p["t_range"]
+        t_max = 6 if "t_max" not in p.keys() else p["t_max"]
+        t_range = [0, t_max]
         c_range = [0.5, 2] if "c_range" not in p.keys() else p["c_range"]
         return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
                               t_steps=p["t_steps"], t_range=t_range,
@@ -520,12 +521,12 @@ if __name__ == '__main__':
     parser.add_argument('--noise',        type=float, default=0.0)
     # For soliton
     parser.add_argument('--P',            type=int,   default=20)
-    parser.add_argument('--spatial_len',  type=int,   default=50)
-    parser.add_argument('--t_steps',      type=int,   default=5)
+    parser.add_argument('--spatial_len',  type=int,   default=50) # M
+    parser.add_argument('--t_steps',      type=int,   default=5) # N
     parser.add_argument('--eta',          type=float, default=6.0)
     parser.add_argument('--gamma',        type=float, default=1.0)
     parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
-    #parser.add_argument('--t_range',      type=float, default=1.0) # Hard coded
+    parser.add_argument('--t_max',        type=float, default=6.0) # Upper time limit
     #parser.add_argument('--c_range',      type=float, default=1.0) # Hard coded
 
     # Dataset sizes

@@ -1,3 +1,4 @@
+import scipy
 from scipy.stats import wasserstein_distance
 import torch
 import torch.nn as nn
@@ -52,8 +53,10 @@ def energy_conservation(u, dx, eta, gamma):
     """
     M = u.size(-1)
     device = u.device
-    e = torch.ones(M, device=device, dtype=torch.float)
-    Dp = .5 / dx * torch.sparse.spdiags(torch.stack([e, -e, e, -e]), torch.tensor([-M+1, -1, 1, M-1], device=device), (M, M)).to_dense()
+    e = np.ones(M)
+    Dp = .5 / dx * scipy.sparse.spdiags([e, -e, e, -e], np.array([-M + 1, -1, 1, M - 1]), M, M).toarray()
+    Dp = torch.tensor(Dp, dtype=torch.float32, device=device)
+
     H = lambda u: dx*torch.sum(-1/6*eta*u**3 + (.5*gamma**2*torch.matmul(Dp,u.transpose(1, 2)).transpose(1, 2)**2), dim=2)
     Ht = H(u)
     return torch.abs(Ht - Ht[:, 0, None])

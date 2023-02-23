@@ -4,3 +4,4 @@ matplotlib
 neptune-client
 umap-learn
 geomloss
+scipy

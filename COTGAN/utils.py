@@ -175,6 +175,7 @@ class DatasetStocks(torch.utils.data.Dataset):
 
 class DatasetSoliton(torch.utils.data.Dataset):
     def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
+        self.t_max = t_range[1]
         self.t_range = t_range # [0, 6]
         self.c_range = c_range # [0.5, 2]
         self.P = P # period
@@ -182,6 +183,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
         self.t_steps = t_steps
         self.spatial_len = spatial_len # M
         self.dx = P / spatial_len
+        self.dt = self.t_max / t_steps
         self.difficulty = difficulty # "easy" or "medium"
         self.data = self.create_soliton_dataset_torch()
         self.data = self.data.to(device)
@@ -197,7 +199,7 @@ class DatasetSoliton(torch.utils.data.Dataset):
         # return the parameters of the dataset with lists as string
         return {"t_range": self.t_range, "c_range": self.c_range, "P": self.P,
                 "t_steps": self.t_steps, "spatial_len": self.spatial_len, "difficulty": self.difficulty,
-                "dx": self.dx}
+                "dx": self.dx, "t_max": self.t_max}
     def create_soliton_dataset_torch(self):
         sech = lambda a: 1/torch.cosh(a) # sech isn't defined in NumPy
         c_t = None
