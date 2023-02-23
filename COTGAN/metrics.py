@@ -61,6 +61,27 @@ def energy_conservation(u, dx, eta, gamma):
     Ht = H(u)
     return torch.abs(Ht - Ht[:, 0, None])
 
+def mass_conservation(u, dx):
+    """
+    Returns the mass conservation error for the KdV equation
+    u: solution tensor of shape (batch_size, time_steps, M)
+    M: number of spatial points
+    dx: spatial step size
+    :returns: mass conservation error tensor of shape (batch_size, time_steps) for each time step
+    """
+    H_mass = dx * torch.sum(u, dim=2)
+    return torch.abs(H_mass - H_mass[:, 0, None])
+
+def momentum_conservation(u, dx):
+    """
+    Returns the momentum conservation error for the KdV equation
+    u: solution tensor of shape (batch_size, time_steps, M)
+    M: number of spatial points
+    dx: spatial step size
+    :returns: momentum conservation error tensor of shape (batch_size, time_steps) for each time step
+    """
+    H_mom = dx * torch.sum(u**2, dim=2)
+    return torch.abs(H_mom - H_mom[:, 0, None])
 
 from geomloss import SamplesLoss
 

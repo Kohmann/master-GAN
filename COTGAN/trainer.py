@@ -9,7 +9,7 @@ import neptune.new as neptune
 
 from architectures import COTGAN, TimeGAN
 from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation, \
-    energy_conservation
+    energy_conservation, mass_conservation, momentum_conservation
 
 
 def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
@@ -42,8 +42,12 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
         # Energy conservation
-        H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
-        neptune_logger["H_mean_error"].log(H_error.mean().item())
+        H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"]).mean().item()
+        H_mass_error     = mass_conservation(fake, dx=params["dx"]).mean().item()
+        H_momentum_error = momentum_conservation(fake, dx=params["dx"]).mean().item()
+        neptune_logger["H_mean_error"].log(H_error)
+        neptune_logger["H_mass_error"].log(H_mass_error)
+        neptune_logger["H_momentum_error"].log(H_momentum_error)
 
 def cotgan_trainer(model, dataset, params, neptune_logger=None):
 
