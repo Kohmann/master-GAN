@@ -138,6 +138,7 @@ class SinusGenerator(nn.Module):
         return out
 
 
+
 class SolitonDiscriminator(nn.Module):
     def __init__(self, args):
         super(SolitonDiscriminator, self).__init__()
