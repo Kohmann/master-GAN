@@ -1,5 +1,5 @@
 #!/bin/bash
-for i in job_test*.slurm; do
+for i in job*.slurm; do
     echo "sbatch $i"
     sbatch $i
 done
