@@ -572,9 +572,14 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu', 'mps'])
     parser.add_argument('--seed',   type=int, default=1)
 
-
     args = parser.parse_args()
     args = vars(args)
+
+    args["device_name"] = ""
+    if args["device"] == "cuda":
+        print("torch.cuda.get_device_name():", torch.cuda.get_device_name(0))
+        args["device_name"] = torch.cuda.get_device_name(0)
+
     args["use_bn"] = args["use_bn"] == "True"
     args["use_opt_scheduler"] = args["use_opt_scheduler"] == "True"
     if args["dataset"] == "soliton":
