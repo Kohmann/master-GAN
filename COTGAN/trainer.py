@@ -575,7 +575,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args = vars(args)
 
-    args["device_name"] = ""
+    args["device_name"] = "cpu"
     if args["device"] == "cuda":
         print("torch.cuda.get_device_name():", torch.cuda.get_device_name(0))
         args["device_name"] = torch.cuda.get_device_name(0)
