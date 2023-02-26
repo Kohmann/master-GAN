@@ -243,7 +243,7 @@ class SolitonGenerator(nn.Module):
         self.gen_FC = list()
         for _ in range(self.num_hidden_layers - 1):
             self.gen_FC.append(nn.Linear(input_hidden, self.hidden_dim))
-            if self.use_batch_norm:
+            if self.use_bn:
                 self.gen_FC.append(nn.BatchNorm1d(self.hidden_dim))
             self.gen_FC.append(nn.LeakyReLU())
             input_hidden = self.hidden_dim
