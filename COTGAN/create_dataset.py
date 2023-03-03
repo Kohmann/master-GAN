@@ -4,7 +4,22 @@ from scipy.sparse import spdiags
 import torch
 
 from tqdm import trange
+
 class DatasetTwoCollidingSolitons():
+    def __init__(self, filename, M_res, N_res):
+
+        self.data_full_res = np.load(filename)
+        self.n_samples, self.M, self.N = self.data_full_res.shape
+        self.dx = self.M // M_res # down scale spatial resolution
+        self.dt = self.N // N_res # down scale temporal resolution
+        self.data = self.data_full_res[:, ::self.dt, ::self.dx]
+
+    def __len__(self):
+        return self.n_samples
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+class TwoCollidingSolitons():
     def __init__(self, eta, gamma, t_max, P, M, N, lower, upper):
         self.eta = eta
         self.gamma = gamma
@@ -39,8 +54,8 @@ class DatasetTwoCollidingSolitons():
         M = x.size
         P = int((x[-1]-x[0])*M/(M-1))
 
-        d1 = .3
-        d2 = .5
+        d1 = .3 # Hard coded
+        d2 = .5 # Hard coded
         sech = lambda a: 1/np.cosh(a) # sech isn't defined in NumPy
         u0 = 0
         u0 += (-6./-eta)*2 * k1**2 * sech(np.abs(k1 * ((x+P/2-P*d1) % P - P/2)))**2
@@ -93,11 +108,8 @@ class DatasetTwoCollidingSolitons():
             self.data[i] = self.create_single_sample(k1[i], k2[i])
 
     def save_data(self):
-        try:
-            np.save(self.filename, self.data)
-            print(f"Saved data to {self.filename}")
-        except:
-            raise FileExistsError(f"Couldn't save data to {self.filename}")
+        np.save(self.filename, self.data.astype(np.float32))
+
 
     def load_data(self):
         try:
@@ -118,7 +130,14 @@ if __name__ == "__main__":
     M = 360  # number of spatial points,
     N = 360  # = 360 # number of temporal points
     lower, upper = .2, .7  # lower and upper bounds for wave init heights
+    NUM_SAMPLES = 100
+    #dataset = TwoCollidingSolitons(eta, gamma, t_max, P, M, N, lower, upper)
+    #dataset.create_dataset(NUM_SAMPLES)
+    #dataset.save_data()
 
-    dataset = DatasetTwoCollidingSolitons(eta, gamma, t_max, P, M, N, lower, upper)
-    dataset.create_dataset(5)
-    dataset.save_data()
+    filename = "eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"
+    dataset = DatasetTwoCollidingSolitons(filename=filename, M_res=120, N_res=120)
+    # type
+    print(type(dataset.data[0,0,0]))
+
+
