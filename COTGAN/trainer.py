@@ -108,9 +108,11 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     D_loss = 0
     for epoch in logger:
         for X in dataloader:
+            if X.size(0) != batch_size*2: continue
             X = X.to(device)
-            Z = torch.randn(batch_size*2, max_seq_len, Z_dim, device=device)
+            Z = torch.randn(X.size(0), max_seq_len, Z_dim, device=device)
             # Train discriminator
+            #print(f"X shape {X.size()}, Z shape {Z.size()}")
             D_loss = model(Z, X, obj="discriminator")
             # Update discriminators
             disc_h_opt.zero_grad()
@@ -427,13 +429,13 @@ def load_dataset_and_train(params):
 def evaluate_model(model, testset, run, params):
     n_samples = params["testset_size"]
 
-    gen_z = model.generate(n_samples).cpu()
+    fake_data = model.generate(n_samples).cpu()
 
-    log_visualizations(testset, gen_z, run)  # log pca, tsne, umap, mode_collapse
+    log_visualizations(testset, fake_data, run)  # log pca, tsne, umap, mode_collapse
     run["model_checkpoint"].upload("./models/" + params["model_name"])
 
-    testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
-    fake_data = model.generate(n_samples).cpu()
+    testset2 = create_dataset(dataset=params["dataset"], n_samples=n_samples, p=params)
+    #fake_data = model.generate(n_samples).cpu()
 
     if "sines" in params["dataset"]:
         mse_error = compare_sin3_generation(fake_data, 0.7, 0)
@@ -491,9 +493,6 @@ def evaluate_model(model, testset, run, params):
         # Hamiltonian: energy conservation
         #H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
         #run["numeric_results/H_mean_error"] = H_error.mean().item()
-
-
-
 
     max_seq_len = fake_data.shape[1]
     x = fake_data.clone().detach().view(n_samples * max_seq_len, -1)
