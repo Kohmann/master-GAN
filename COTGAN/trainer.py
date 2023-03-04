@@ -442,7 +442,7 @@ def evaluate_model(model, testset, run, params):
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
-    if "soliton" == params["dataset"]:
+    if "soliton" in params["dataset"]:
         fake = fake_data.clone().detach()
 
         if "twosolitons" == params["dataset"]:
@@ -464,16 +464,13 @@ def evaluate_model(model, testset, run, params):
             k2_est = np.sqrt(fake[:, 0, s2_max] / 2)
 
             fig = plt.figure(figsize=(7, 5))
-            plt.hist(k1_est, bins=100, density=True)
+            plt.hist(k1_est, bins=100, density=True, label="k1", alpha=0.5)
+            plt.hist(k2_est, bins=100, density=True, label="k2", alpha=0.5)
+            plt.legend()
             plt.xlim(0.2, 0.7)  # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
-            run["k1_fake_distribution"].upload(fig)
+            run["c_fake_distribution"].upload(fig)
             plt.close(fig)
 
-            fig = plt.figure(figsize=(7, 5))
-            plt.hist(k2_est, bins=100, density=True)
-            plt.xlim(0.2, 0.7)  # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
-            run["k2_fake_distribution"].upload(fig)
-            plt.close(fig)
 
         if "soliton" == params["dataset"]:
             c_fake = fake[:, 0, :].max(dim=1)[0]
@@ -540,7 +537,7 @@ if __name__ == '__main__':
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--n_epochs',   type=int,   default=10)
+    parser.add_argument('--n_epochs',   type=int,   default=2)
     parser.add_argument('--l_rate',     type=float, default=0.001)
     parser.add_argument('--l_rate_g',   type=float, default=0.001)
     parser.add_argument('--batch_size', type=int,   default=32)
