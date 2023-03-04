@@ -244,12 +244,18 @@ class DatasetTwoCollidingSolitons(torch.utils.data.Dataset):
 
     def load_data(self, file_dir):
         file_names = ["0_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
-                      "1_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
+                      "3_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
                       "2_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"]
         data_arr = []
 
         for file_name in file_names:
-            data_high_res = np.load(file_dir + file_name)
+            # catch loading error and break if file is not found
+            try:
+                data_high_res = np.load(file_dir + file_name)
+            except FileNotFoundError:
+                print(f"File {file_name} not found. Continuing without it.")
+                continue
+
             N_samples, N, M = data_high_res.shape
             dx_step = M // self.dx
             dt_step = N // self.dt
