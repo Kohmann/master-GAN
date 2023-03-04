@@ -1,3 +1,5 @@
+import argparse
+
 import numpy as np
 import numpy.linalg as la
 from scipy.sparse import spdiags
@@ -6,14 +8,38 @@ import torch
 from tqdm import trange
 
 class DatasetTwoCollidingSolitons():
-    def __init__(self, filename, M_res, N_res):
+    def __init__(self, file_dir, dx, dt):
+        self.dx = dx
+        self.dt = dt
 
-        self.data_full_res = np.load(filename)
-        self.n_samples, self.M, self.N = self.data_full_res.shape
-        self.dx = self.M // M_res # down scale spatial resolution
-        self.dt = self.N // N_res # down scale temporal resolution
-        self.data = self.data_full_res[:, ::self.dt, ::self.dx]
+        self.data = self.load_data(file_dir)
+        self.n_samples = self.data.shape[0]
 
+    def load_data(self, file_dir):
+
+        file_names = ["0_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
+                      "1_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
+                      "2_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"]
+        data_arr = []
+
+        for file_name in file_names:
+            data_high_res = np.load(file_dir + file_name)
+            N_samples, N, M = data_high_res.shape
+            dx_step = M // self.dx
+            dt_step = N // self.dt
+            print(f"RAW data: {data_high_res.shape}, MB: {data_high_res.nbytes / 1e6}")
+            data_low_res = data_high_res[:, ::dt_step, ::dx_step]
+            del data_high_res
+            print(f"\tDownsampled:{data_low_res.shape}, MB: {data_low_res.nbytes / 1e6}")
+            data_arr.append(data_low_res)
+
+        data = np.concatenate(data_arr, axis=0)
+        print(f"Concatenated data with shape {data.shape} and size: {data.nbytes / 1e6} MB")
+        return data
+
+    def get_params(self):
+        # return the parameters of the dataset with lists as string
+        return {"dx": self.dx, "dt": self.dt}
     def __len__(self):
         return self.n_samples
     def __getitem__(self, idx):
@@ -101,14 +127,15 @@ class TwoCollidingSolitons():
         return u
 
     def create_dataset(self, N_samples):
-        self.data = np.zeros((N_samples, self.N, self.M))
+        self.data = np.zeros((N_samples, self.N, self.M), dtype=np.float32)
         k1 = self.lower + (self.upper-self.lower) * np.random.rand(N_samples)
         k2 = self.lower + (self.upper-self.lower) * np.random.rand(N_samples)
         for i in trange(N_samples, desc="Creating dataset"):
-            self.data[i] = self.create_single_sample(k1[i], k2[i])
+            self.data[i] = self.create_single_sample(k1[i], k2[i]).astype(np.float32)
 
-    def save_data(self):
-        np.save(self.filename, self.data.astype(np.float32))
+    def save_data(self, i=0):
+        filename = str(i) + "_" + self.filename
+        np.save(filename, self.data.astype(np.float32))
 
 
     def load_data(self):
@@ -120,6 +147,12 @@ class TwoCollidingSolitons():
             raise FileNotFoundError(f"Couldn't load data from {self.filename}")
 
 if __name__ == "__main__":
+    # parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=0)
+    seed = parser.parse_args().seed
+
+    np.random.seed(seed)
     # Parameters
     eta = 6.0
     gamma = 1.0
@@ -130,13 +163,14 @@ if __name__ == "__main__":
     M = 360  # number of spatial points,
     N = 360  # = 360 # number of temporal points
     lower, upper = .2, .7  # lower and upper bounds for wave init heights
-    NUM_SAMPLES = 100
-    #dataset = TwoCollidingSolitons(eta, gamma, t_max, P, M, N, lower, upper)
-    #dataset.create_dataset(NUM_SAMPLES)
-    #dataset.save_data()
+    NUM_SAMPLES = 1000
+    print(f"Generating dataset containing {NUM_SAMPLES} samples")
+    dataset = TwoCollidingSolitons(eta, gamma, t_max, P, M, N, lower, upper)
+    dataset.create_dataset(NUM_SAMPLES)
+    dataset.save_data(seed)
 
-    filename = "eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"
-    dataset = DatasetTwoCollidingSolitons(filename=filename, M_res=120, N_res=120)
+    #filename = "eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"
+    #dataset = DatasetTwoCollidingSolitons(filename=filename, M_res=120, N_res=120)
     # type
     print(type(dataset.data[0,0,0]))
 
