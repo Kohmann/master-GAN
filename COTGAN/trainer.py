@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import trange
 import random
 
-from utils import DatasetSinus, log_visualizations, DatasetSoliton
+from utils import DatasetSinus, log_visualizations, DatasetSoliton, DatasetTwoCollidingSolitons
 import neptune.new as neptune
 
 from architectures import COTGAN, TimeGAN
@@ -33,12 +33,28 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
                                        X_hat.view(n_samples * max_seq_len, -1).cpu()))
 
     if "soliton" in params["dataset"]:
+
         fake = X_hat.clone().detach()
-        c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
-        c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
-        p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
-        neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
-        if params["difficulty"] == "easy":
+
+        if "twosolitons" == params["dataset"]:
+            d1, d2 = .3, .5
+            _, t_res, x_res = fake.shape
+            s1_max = int(x_res * d1)
+            s2_max = int(x_res * d2)
+            c_fake_s1 = fake[:, 0, s1_max].cpu()
+            c_fake_s2 = fake[:, 0, s2_max].cpu()
+
+            c_real_s1 = x_sw[:, 0, s1_max].cpu()
+            c_real_s2 = x_sw[:, 0, s2_max].cpu()
+            p_value_s1 = two_sample_kolmogorov_smirnov(c_real_s1, c_fake_s1)
+            p_value_s2 = two_sample_kolmogorov_smirnov(c_real_s2, c_fake_s2)
+            p_value = (p_value_s1 + p_value_s2) / 2
+            neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
+        else:
+            c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
+            c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
+            p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
+            neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
         # Energy conservation
@@ -74,8 +90,9 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     disc_m_opt = torch.optim.Adam(model.discriminator_m.parameters(), lr=learning_rate, betas=(beta1, beta2))
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate_g, betas=(beta1, beta2))
     # Schedulers (Optional)
-    print("Using use_opt_scheduler:", use_opt_scheduler)
+
     if use_opt_scheduler:
+        print("Using use_opt_scheduler:", use_opt_scheduler)
         step_size = n_epochs // 3
         disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.8)
         disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.8)
@@ -93,7 +110,6 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
         for X in dataloader:
             X = X.to(device)
             Z = torch.randn(batch_size*2, max_seq_len, Z_dim, device=device)
-
             # Train discriminator
             D_loss = model(Z, X, obj="discriminator")
             # Update discriminators
@@ -131,65 +147,8 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
                     X_hat = model(Z=fixed_Z_mb, X=None, obj="inference")
                     log_generation(X_hat=X_hat, epoch=epoch,x_sw=x_sw, neptune_logger=neptune_logger, params=params)
 
-                    """fig, axs = plt.subplots(3, 3, figsize=(14, 10))
-
-                    for x in range(3):
-                        for y in range(3):
-                            if params["dataset"] == "soliton":
-                                axs[x, y].plot(X_hat[x * 3 + y].cpu().T)
-                            else:
-                                axs[x, y].plot(X_hat[x * 3 + y].cpu())
-                            axs[x, y].set_ylim([0, 1])
-                            #axs[x, y].set_yticklabels([])
-
-                    fig.suptitle(f"Generation: {epoch}", fontsize=14)
-                    neptune_logger["generated_image"].log(fig)
-                    plt.close(fig)
-
-                    neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1),
-                                                       X_hat.view(n_samples * max_seq_len, -1)))
-
-                    if "soliton" in params["dataset"]:
-                        fake = torch.tensor(X_hat).detach()
-                        c_fake = fake[:, 0, :].max(dim=1)[0].cpu()
-                        c_real = x_sw[:, 0, :].max(dim=1)[0].cpu()
-                        p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
-                        neptune_logger["c_mode_collapse"].log(p_value if p_value > 0.0001 else 0.0)
-                        if params["difficulty"] == "medium":
-                            neptune_logger["height_diff_mae"].log(mae_height_diff(fake))"""
-
     # save model
     torch.save(model.state_dict(), f"./models/{model_name}")
-
-def cotgan_generator(model, params, eval=False):
-    """The inference procedure for TimeGAN
-    Args:
-        - model (torch.nn.module): The model that generates synthetic data
-        - T (List[int]): The time to be generated on
-        - args (dict): The model/training configurations
-    Returns:
-        - generated_data (np.ndarray): The synthetic data generated by the model
-    """
-    # Load model for inference
-    model_name = params["model_name"]
-    device = params["device"]
-    Z_dim = params["Z_dim"]
-    max_seq_len = params["max_seq_len"]
-    trainset_size = params["testset_size"]
-    filepath = "./models/"
-    if not eval:
-        model.load_state_dict(torch.load(filepath + model_name, map_location=device))
-
-    print("\nGenerating Data...", end="")
-    # Initialize model to evaluation mode and run without gradients
-    model.to(device)
-    model.eval()
-    with torch.no_grad():
-        # Generate fake data
-        Z = torch.randn((trainset_size, max_seq_len, Z_dim), device=device)
-        generated_data = model(Z, obj="inference")
-    print("Done")
-    return generated_data.cpu().numpy()
 
 ## TIMEGAN
 def embedding_trainer(model, dataloader, e_opt, r_opt, n_epochs, neptune_logger=None):
@@ -364,12 +323,19 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
         return DatasetSinus(num=n_samples, seq_len=p["max_seq_len"],
                             alpha=p["alpha"], noise=p["noise"], device=device)
     elif "soliton" in dataset:
-        t_max = 6 if "t_max" not in p.keys() else p["t_max"]
-        t_range = [0, t_max]
-        c_range = [0.5, 2] if "c_range" not in p.keys() else p["c_range"]
-        return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
-                              t_steps=p["t_steps"], t_range=t_range,
-                              c_range=c_range, device=device, difficulty=p["difficulty"])
+        if "soliton" == dataset:
+            t_max = 6 if "t_max" not in p.keys() else p["t_max"]
+            t_range = [0, t_max]
+            c_range = [0.5, 2] if "c_range" not in p.keys() else p["c_range"]
+            return DatasetSoliton(n_samples=n_samples, spatial_len=p["spatial_len"], P=p["P"],
+                                  t_steps=p["t_steps"], t_range=t_range,
+                                  c_range=c_range, device=device, difficulty=p["difficulty"])
+        elif "twosolitons" == dataset:
+            print("Loading dataset: Two Solitons")
+            file_dir = ""
+            if p["device"] == "cuda":
+                file_dir = "datasets/"
+            return DatasetTwoCollidingSolitons(file_dir=file_dir, dx=p["dx"], dt=p["dt"],num_samples=n_samples)
     else:
         raise NotImplementedError
 def load_dataset_and_train(params):
@@ -474,19 +440,52 @@ def evaluate_model(model, testset, run, params):
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
-    if "soliton" in params["dataset"]:
+    if "soliton" == params["dataset"]:
         fake = fake_data.clone().detach()
-        c_fake = fake[:, 0, :].max(dim=1)[0]
-        c_real = testset[:][:, 0, :].max(dim=1)[0]
-        p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
-        run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
-        if params["difficulty"] == "easy":
+
+        if "twosolitons" == params["dataset"]:
+            d1, d2 = .3, .5
+            _, t_res, x_res = fake.shape
+            s1_max = int(x_res * d1)
+            s2_max = int(x_res * d2)
+            c_fake_s1 = fake[:, 0, s1_max].cpu()
+            c_fake_s2 = fake[:, 0, s2_max].cpu()
+
+            c_real_s1 = testset[:][:, 0, s1_max].cpu()
+            c_real_s2 = testset[:][:, 0, s2_max].cpu()
+            p_value_s1 = two_sample_kolmogorov_smirnov(c_real_s1, c_fake_s1)
+            p_value_s2 = two_sample_kolmogorov_smirnov(c_real_s2, c_fake_s2)
+            p_value = (p_value_s1 + p_value_s2) / 2
+            run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
+
+            k1_est = np.sqrt(fake[:, 0, s1_max] / 2)
+            k2_est = np.sqrt(fake[:, 0, s2_max] / 2)
+
+            fig = plt.figure(figsize=(7, 5))
+            plt.hist(k1_est, bins=100, density=True)
+            plt.xlim(0.2, 0.7)  # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
+            run["k1_fake_distribution"].upload(fig)
+            plt.close(fig)
+
+            fig = plt.figure(figsize=(7, 5))
+            plt.hist(k2_est, bins=100, density=True)
+            plt.xlim(0.2, 0.7)  # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
+            run["k2_fake_distribution"].upload(fig)
+            plt.close(fig)
+
+        if "soliton" == params["dataset"]:
+            c_fake = fake[:, 0, :].max(dim=1)[0]
+            c_real = testset[:][:, 0, :].max(dim=1)[0]
+            p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
+            run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
             run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
-        fig = plt.figure(figsize=(7, 5))
-        plt.hist(2. * c_fake, bins=100, density=True)
-        plt.xlim(0.5, 2) # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
-        run["c_fake_distribution"].upload(fig)
-        plt.close(fig)
+
+            fig = plt.figure(figsize=(7, 5))
+            plt.hist(2. * c_fake, bins=100, density=True)
+            plt.xlim(0.5, 2) # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
+            run["c_fake_distribution"].upload(fig)
+            plt.close(fig)
+
 
         # Energy related metrics
         # Hamiltonian: energy conservation
@@ -517,7 +516,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='cotgan', choices=['cotgan', 'timegan'])
     parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     # Dataset params
-    parser.add_argument('--dataset',      type=str,   default='soliton', choices=['sinus', 'soliton'])
+    parser.add_argument('--dataset',      type=str,   default='twosolitons', choices=['sinus', 'soliton', 'twosolitons'])
     # For sinus
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
@@ -531,7 +530,11 @@ if __name__ == '__main__':
     parser.add_argument('--gamma',        type=float, default=1.0)
     parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
     parser.add_argument('--t_max',        type=float, default=6.0) # Upper time limit
-    #parser.add_argument('--c_range',      type=float, default=1.0) # Hard coded
+
+    # for twosolitons
+    parser.add_argument('--dx',           type=int,   default=120)
+    parser.add_argument('--dt',           type=int,   default=30)
+
 
     # Dataset sizes
     parser.add_argument('--trainset_size',type=int,   default=32*2)
@@ -589,5 +592,9 @@ if __name__ == '__main__':
         # TODO (Fix this issue properly)
         if args["difficulty"] == "medium":
             args["dataset"] = "medium_soliton"
+
+    if args["dataset"] == "twosolitons":
+        args["max_seq_len"] = args["dt"]
+        args["feature_dim"] = args["dx"]
 
     load_dataset_and_train(args)

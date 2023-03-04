@@ -232,13 +232,15 @@ class DatasetSoliton(torch.utils.data.Dataset):
         return data
 
 
-class DatasetTwoCollidingSolitons():
-    def __init__(self, file_dir, dx, dt):
+class DatasetTwoCollidingSolitons(torch.utils.data.Dataset):
+    def __init__(self, file_dir, dx, dt, num_samples=32*4):
         self.dx = dx
         self.dt = dt
 
-        self.data = self.load_data(file_dir)
-        self.n_samples = self.data.shape[0]
+        self.data = torch.tensor(self.load_data(file_dir))
+        if num_samples < 2000:
+            self.data = self.data[:num_samples]
+        self.n_samples = self.data.size(0)
 
     def load_data(self, file_dir):
         file_names = ["0_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
