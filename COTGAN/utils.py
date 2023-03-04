@@ -231,25 +231,45 @@ class DatasetSoliton(torch.utils.data.Dataset):
             data[i] = u
         return data
 
-class DatasetTwoSolitons(torch.utils.data.Dataset):
-    def __init__(self, n_samples, P, t_range, c_range, N=100, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
-        self.t_range = t_range # [0, 6]
-        self.c_range = c_range # [0.5, 2]
-        self.P = P # period
-        self.M = spatial_len  # spacial resolution
-        self.N = N # temporal resolution
-        self.n_samples = n_samples
-        self.t_steps = t_steps
 
+class DatasetTwoCollidingSolitons():
+    def __init__(self, file_dir, dx, dt):
+        self.dx = dx
+        self.dt = dt
 
-    def __len__(self):
-        return self.n_samples
-    def __getitem__(self, idx):
-        return self.data[idx]
+        self.data = self.load_data(file_dir)
+        self.n_samples = self.data.shape[0]
+
+    def load_data(self, file_dir):
+        file_names = ["0_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
+                      "1_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy",
+                      "2_eta=6p0_gamma=1p0_tmax=10_P=50_N=360_M=360_lower=0p2_upper=0p7.npy"]
+        data_arr = []
+
+        for file_name in file_names:
+            data_high_res = np.load(file_dir + file_name)
+            N_samples, N, M = data_high_res.shape
+            dx_step = M // self.dx
+            dt_step = N // self.dt
+            print(f"RAW data: {data_high_res.shape}, MB: {data_high_res.nbytes / 1e6}")
+            data_low_res = data_high_res[:, ::dt_step, ::dx_step]
+            del data_high_res
+            print(f"\tDownsampled:{data_low_res.shape}, MB: {data_low_res.nbytes / 1e6}")
+            data_arr.append(data_low_res)
+
+        data = np.concatenate(data_arr, axis=0)
+        print(f"Concatenated data with shape {data.shape} and size: {data.nbytes / 1e6} MB")
+        return data
 
     def get_params(self):
         # return the parameters of the dataset with lists as string
-        raise NotImplementedError
+        return {"dx": self.dx, "dt": self.dt}
+
+    def __len__(self):
+        return self.n_samples
+
+    def __getitem__(self, idx):
+        return self.data[idx]
 
 
 
