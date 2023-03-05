@@ -428,8 +428,7 @@ def load_dataset_and_train(params):
     run.stop()"""
 def evaluate_model(model, testset, run, params):
     n_samples = params["testset_size"]
-
-    fake_data = model.generate(n_samples).cpu()
+    fake_data = model.generate(n_samples).cpu().detach()
 
     log_visualizations(testset, fake_data, run)  # log pca, tsne, umap, mode_collapse
     run["model_checkpoint"].upload("./models/" + params["model_name"])
@@ -447,11 +446,11 @@ def evaluate_model(model, testset, run, params):
 
         if "twosolitons" == params["dataset"]:
             d1, d2 = .3, .5
-            _, t_res, x_res = fake.shape
+            _, t_res, x_res = fake_data.shape
             s1_max = int(x_res * d1)
             s2_max = int(x_res * d2)
-            c_fake_s1 = fake[:, 0, s1_max].cpu()
-            c_fake_s2 = fake[:, 0, s2_max].cpu()
+            c_fake_s1 = fake_data[:, 0, s1_max].cpu()
+            c_fake_s2 = fake_data[:, 0, s2_max].cpu()
 
             c_real_s1 = testset[:][:, 0, s1_max].cpu()
             c_real_s2 = testset[:][:, 0, s2_max].cpu()
@@ -460,8 +459,8 @@ def evaluate_model(model, testset, run, params):
             p_value = (p_value_s1 + p_value_s2) / 2
             run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
 
-            k1_est = np.sqrt(fake[:, 0, s1_max] / 2)
-            k2_est = np.sqrt(fake[:, 0, s2_max] / 2)
+            k1_est = np.sqrt(c_fake_s1 / 2)
+            k2_est = np.sqrt(c_fake_s2 / 2)
 
             fig = plt.figure(figsize=(7, 5))
             plt.hist(k1_est, bins=100, density=True, label="k1", alpha=0.5)
@@ -473,11 +472,11 @@ def evaluate_model(model, testset, run, params):
 
 
         if "soliton" == params["dataset"]:
-            c_fake = fake[:, 0, :].max(dim=1)[0]
+            c_fake = fake_data[:, 0, :].max(dim=1)[0]
             c_real = testset[:][:, 0, :].max(dim=1)[0]
             p_value = two_sample_kolmogorov_smirnov(c_real, c_fake)
             run["numeric_results/c_mode_collapse"] = p_value if p_value > 0.0001 else 0.0
-            run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
+            run["numeric_results/height_diff_mae"] = mae_height_diff(fake_data)
 
             fig = plt.figure(figsize=(7, 5))
             plt.hist(2. * c_fake, bins=100, density=True)
@@ -491,8 +490,9 @@ def evaluate_model(model, testset, run, params):
         #H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
         #run["numeric_results/H_mean_error"] = H_error.mean().item()
 
-    max_seq_len = fake_data.shape[1]
-    x = fake_data.clone().detach().view(n_samples * max_seq_len, -1)
+    n, max_seq_len, _ = fake_data.shape
+    x = fake_data.view(n_samples * max_seq_len, -1)
+    print("testset shape: ", testset[:].shape, "fake_data shape: ", fake_data.shape, "fake_data reshaped (B*T,D): ", x.shape)
     y = testset[:].view(n_samples * max_seq_len, -1)
     y_2 = testset2[:].view(n_samples * max_seq_len, -1)
 
@@ -521,7 +521,7 @@ if __name__ == '__main__':
     # For soliton
     parser.add_argument('--P',            type=int,   default=20)
     parser.add_argument('--spatial_len',  type=int,   default=50) # M
-    parser.add_argument('--t_steps',      type=int,   default=5) # N
+    parser.add_argument('--t_steps',      type=int,   default=5)  # N
     parser.add_argument('--eta',          type=float, default=6.0)
     parser.add_argument('--gamma',        type=float, default=1.0)
     parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
