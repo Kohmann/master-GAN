@@ -442,7 +442,6 @@ def evaluate_model(model, testset, run, params):
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
     if "soliton" in params["dataset"]:
-        fake = fake_data.clone().detach()
 
         if "twosolitons" == params["dataset"]:
             d1, d2 = .3, .5
