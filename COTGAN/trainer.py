@@ -58,9 +58,12 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
         # Energy conservation
-        H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"]).mean().item()
-        H_mass_error     = mass_conservation(fake, dx=params["dx"]).mean().item()
-        H_momentum_error = momentum_conservation(fake, dx=params["dx"]).mean().item()
+        dx = params["dx"]
+        if "twosolitons" == params["dataset"]:
+            dx = 50/360 # P / M
+        H_error = energy_conservation(fake, dx=dx, eta=params["eta"], gamma=params["gamma"]).mean().item()
+        H_mass_error     = mass_conservation(fake, dx=dx).mean().item()
+        H_momentum_error = momentum_conservation(fake, dx=dx).mean().item()
         neptune_logger["H_mean_error"].log(H_error)
         neptune_logger["H_mass_error"].log(H_mass_error)
         neptune_logger["H_momentum_error"].log(H_momentum_error)
@@ -381,51 +384,6 @@ def load_dataset_and_train(params):
     # Evaluate
     evaluate_model(model, testset, run, params)
 
-    # Generate random synthetic data
-    """gen_z = cotgan_generator(model, params)
-
-    log_visualizations(testset, gen_z, run)  # log pca, tsne, umap, mode_collapse
-    run["model_checkpoint"].upload("./models/" + params["model_name"])
-
-    from metrics import compare_sin3_generation, sw_approx
-
-    testset2 = create_dataset(dataset=params["dataset"], n_samples=params["testset_size"], p=params)
-
-    # testset2 = DatasetSinus(num=params["testset_size"], seq_len=params["max_seq_len"], alpha=alpha, noise=noise, device="cpu")
-    fake_data = cotgan_generator(model, params)
-
-    if "sines" in params["dataset"]:
-        mse_error = compare_sin3_generation(fake_data, 0.7, 0)
-        print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
-        run["numeric_results/sin3_generation_MSE_loss"] = mse_error
-
-    if "soliton" in params["dataset"]:
-        fake = torch.tensor(fake_data)
-        c_fake = fake[:, 0, :].max(dim=1)[0]
-        c_real = testset[:][:, 0, :].max(dim=1)[0]
-        run["numeric_results/c_mode_collapse"] = two_sample_kolmogorov_smirnov(c_real, c_fake)
-        if params["difficulty"] == "easy":
-            run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
-        #run["numeric_results/height_diff_mae"] = mae_height_diff(fake)
-        fig = plt.figure(figsize=(7, 5))
-        plt.hist(2. * c_fake, bins=100, density=True)
-        plt.xlim(0.5, 2)
-        run["c_fake_distribution"].upload(fig)
-        plt.close(fig)
-
-    n_samples = params["testset_size"]
-    max_seq_len = fake_data.shape[1]
-    x = torch.tensor(fake_data).view(n_samples * max_seq_len, -1)
-    y = testset[:].view(n_samples * max_seq_len, -1)
-    y_2 = testset2[:].view(n_samples * max_seq_len, -1)
-
-    sw_baseline = sw_approx(y, y_2)
-    sw = sw_approx(y, x)
-
-    run["numeric_results/num_test_samples"] = len(testset)
-    run["numeric_results/SW"] = sw  # .item()
-    run["numeric_results/SW_baseline"] = sw_baseline  # .item()
-    run.stop()"""
 def evaluate_model(model, testset, run, params):
     n_samples = params["testset_size"]
     fake_data = model.generate(n_samples).cpu().detach()
@@ -482,12 +440,6 @@ def evaluate_model(model, testset, run, params):
             plt.xlim(0.5, 2) # TODO plt.xlim for c_distribution is always (0.5, 2), make this dynamic
             run["c_fake_distribution"].upload(fig)
             plt.close(fig)
-
-
-        # Energy related metrics
-        # Hamiltonian: energy conservation
-        #H_error = energy_conservation(fake, dx=params["dx"], eta=params["eta"], gamma=params["gamma"])
-        #run["numeric_results/H_mean_error"] = H_error.mean().item()
 
     n, max_seq_len, _ = fake_data.shape
     x = fake_data.view(n_samples * max_seq_len, -1)
