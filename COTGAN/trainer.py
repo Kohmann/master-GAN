@@ -543,5 +543,8 @@ if __name__ == '__main__':
     if args["dataset"] == "twosolitons":
         args["max_seq_len"] = args["dt"]
         args["feature_dim"] = args["dx"]
+        args["P"] = 50
+        args["spatial_len"] = args["dx"]
+        args["t_steps"] = args["dt"]
 
     load_dataset_and_train(args)
