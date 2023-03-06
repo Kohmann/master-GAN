@@ -229,7 +229,7 @@ class SolitonGenerator(nn.Module):
 
         self.gen_rnn = nn.GRU(input_size=self.Z_dim,
                                 hidden_size=self.gen_rnn_hidden_dim,
-                                num_layers=1,
+                                num_layers=self.gen_rnn_num_layers-1 if self.gen_rnn_num_layers > 1 else 1,
                                 batch_first=True)
         # For FC layers
         input_hidden = self.gen_rnn_hidden_dim
@@ -239,6 +239,7 @@ class SolitonGenerator(nn.Module):
                                 hidden_size=self.gen_rnn_hidden_dim * 2,
                                 num_layers=1,
                                 batch_first=True)
+
 
         self.gen_FC = list()
         for _ in range(self.num_hidden_layers - 1):
