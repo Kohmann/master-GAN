@@ -337,9 +337,7 @@ def create_dataset(dataset, n_samples, p, device="cpu"):
                                   c_range=c_range, device=device, difficulty=p["difficulty"])
         elif "twosolitons" == dataset:
             print("Loading dataset: Two Solitons")
-            file_dir = ""
-            if p["device"] == "cuda":
-                file_dir = "datasets/"
+            file_dir = "datasets/"
             return DatasetTwoCollidingSolitons(file_dir=file_dir, dx=p["dx"], dt=p["dt"],num_samples=n_samples)
     else:
         raise NotImplementedError
