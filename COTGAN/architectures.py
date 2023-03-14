@@ -224,9 +224,6 @@ class SolitonGenerator(nn.Module):
         self.rnn_type = args["rnn_type"] # GRU or LSTM
         self.use_bn = args["use_bn"]
 
-        # Generator Architecture
-        # input = (B, S, D), e.g. (32, 100, 25)
-
         self.gen_rnn = nn.GRU(input_size=self.Z_dim,
                                 hidden_size=self.gen_rnn_hidden_dim,
                                 num_layers=self.gen_rnn_num_layers-1 if self.gen_rnn_num_layers > 1 else 1,
