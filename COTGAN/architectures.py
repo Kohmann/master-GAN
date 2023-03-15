@@ -1,5 +1,4 @@
 import torch.nn as nn
-
 from cost_utils import *
 
 class SinusDiscriminator(nn.Module):
@@ -270,7 +269,7 @@ class COTGAN(nn.Module):
         self.sinkhorn_eps = args["sinkhorn_eps"]
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
-        if "sinus" in args["dataset"]:
+        """if "sinus" in args["dataset"]:
             self.generator = SinusGenerator(args=args)
             self.discriminator_h = SinusDiscriminator(args=args)
             self.discriminator_m = SinusDiscriminator(args=args)
@@ -278,6 +277,10 @@ class COTGAN(nn.Module):
             self.generator = SolitonGenerator(args=args)
             self.discriminator_h = SolitonDiscriminator(args=args)
             self.discriminator_m = SolitonDiscriminator(args=args)
+            """
+        self.generator = SolitonGenerator(args=args)
+        self.discriminator_h = SolitonDiscriminator(args=args)
+        self.discriminator_m = SolitonDiscriminator(args=args)
 
     def __discriminator_loss(self, real_data, real_data_p, z1, z2):
         fake_data = self.generator(z1).detach()
@@ -693,38 +696,57 @@ class TimeGAN(torch.nn.Module):
 
 
 
-
-
 if __name__ == "__main__":
 
-    x = torch.randn(16, 100, 5)
+    x = torch.randn(16, 100, 3)
     z = torch.randn(16, 100, 100)
 
+
     args = {
-        "gen_rnn_hidden_dim": 4,
+        "n_samples":32*4,
+        "gen_rnn_hidden_dim": 32,
         "gen_rnn_num_layers": 2,
-        "dis_rnn_hidden_dim": 4,
+        "dis_rnn_hidden_dim": 32,
         "dis_rnn_num_layers": 2,
         "num_hidden_layers": 2,
         "use_batch_norm": False,
-        "Z_dim": z.size(-1),
-        "max_seq_len": x.size(1),
-        "hidden_dim": 10,
-        "feature_dim": x.size(-1),
+        "Z_dim": 100,
+        "max_seq_len": 100,
+        "hidden_dim": 20,
+        "feature_dim": 3,
         "device": "cpu",
         "scaling_coef": 1,
-        "sinkhorn_eps": 0.1,
+        "sinkhorn_eps": 0.8,
         "sinkhorn_l": 10,
-        "reg_lam": 0.1
+        "reg_lam": 0.1,
+        "rnn_type": "GRU",
+        "batch_size": 16,
+        "use_bn": False,
+        "J_dim": 10,
+        "dataset": "sinus",
+        "alpha": 0.7,
+        "noise": 0.,
 
     }
+    from utils import DatasetSinus
+    dataset = DatasetSinus(args["n_samples"], seq_len=args["max_seq_len"],
+                            alpha=args["alpha"], noise=args["noise"], device=args["device"])
 
-    gen = SinusGenerator(args)
-    dis = SinusDiscriminator(args)
+    gen = SolitonGenerator(args)
+    dis = SolitonDiscriminator(args)
     model = COTGAN(args)
-    print(gen(z).size())
-    #print(dis(x))
-    #print("Generator loss:", model(z, z, x, x, "generator"))
-    #print("Discriminator loss:", model(z, z, x, x, "discriminator"))
+    print(f"GENERATOR: {gen}")
+    print("------------------")
+    print(f"DISCRIMINATOR: {dis}")
+    print("------------------")
+
+    x_real = dataset[:args["batch_size"]]
+    z = torch.randn(args["batch_size"], args["max_seq_len"], args["Z_dim"], device=args["device"])
+    x_fake = gen(z)
+    print(f"X_FAKE: {x_fake.shape}")
+    disc_fake = dis(x_fake)
+    disc_real = dis(x_real)
+    print(f"DISC_FAKE: {disc_fake.shape}")
+    print(f"DISC_REAL: {disc_real.shape}")
 
 
