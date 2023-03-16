@@ -399,7 +399,7 @@ def evaluate_model(model, testset, run, params):
     #fake_data = model.generate(n_samples).cpu()
 
     if "sinus" in params["dataset"]:
-        mse_error = compare_sin3_generation(fake_data, 0.7, 0)
+        mse_error = compare_sin3_generation(fake_data.numpy(), 0.7, 0)
         print("ALPHA AND NOISE ARE HARD CODED IN THE METRIC FUNCTION to be 0.7 and 0.")
         run["numeric_results/sin3_generation_MSE_loss"] = mse_error
 
