@@ -32,6 +32,11 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     neptune_logger["SW"].log(sw_approx(x_sw.view(n_samples * max_seq_len, -1).cpu(),
                                        X_hat.view(n_samples * max_seq_len, -1).cpu()))
 
+    if params["dataset"] == "sinus":
+        # log sin3 error
+        neptune_logger["sin3_error"].log(compare_sin3_generation(X_hat, params["alpha"], params["noise"]))
+
+
     if "soliton" in params["dataset"]:
 
         fake = X_hat.clone().detach()
@@ -468,7 +473,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha',        type=float, default=0.7)
     parser.add_argument('--noise',        type=float, default=0.0)
     # For soliton
-    parser.add_argument('--P',            type=int,   default=20)
+    parser.add_argument('--P',            type=int,   default=50)
     parser.add_argument('--spatial_len',  type=int,   default=50) # M
     parser.add_argument('--t_steps',      type=int,   default=5)  # N
     parser.add_argument('--eta',          type=float, default=6.0)
