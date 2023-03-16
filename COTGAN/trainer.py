@@ -34,7 +34,8 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
 
     if params["dataset"] == "sinus":
         # log sin3 error
-        neptune_logger["sin3_error"].log(compare_sin3_generation(X_hat, params["alpha"], params["noise"]))
+        if (epoch+1) % 10 == 0:
+            neptune_logger["sin3_error"].log(compare_sin3_generation(X_hat.detach().cpu().numpy(), params["alpha"], params["noise"]))
 
 
     if "soliton" in params["dataset"]:
