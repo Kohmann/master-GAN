@@ -467,7 +467,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='cotgan', choices=['cotgan', 'timegan'])
     parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     # Dataset params
-    parser.add_argument('--dataset',      type=str,   default='twosolitons', choices=['sinus', 'soliton', 'twosolitons'])
+    parser.add_argument('--dataset',      type=str,   default='soliton', choices=['sinus', 'soliton', 'twosolitons'])
     # For sinus
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
@@ -486,13 +486,12 @@ if __name__ == '__main__':
     parser.add_argument('--dx',           type=int,   default=120)
     parser.add_argument('--dt',           type=int,   default=30)
 
-
     # Dataset sizes
     parser.add_argument('--trainset_size',type=int,   default=32*2)
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--n_epochs',   type=int,   default=2)
+    parser.add_argument('--n_epochs',   type=int,   default=1)
     parser.add_argument('--l_rate',     type=float, default=0.001)
     parser.add_argument('--l_rate_g',   type=float, default=0.001)
     parser.add_argument('--batch_size', type=int,   default=32)
@@ -511,7 +510,7 @@ if __name__ == '__main__':
     parser.add_argument('--hidden_dim',         type=int, default=64)
     parser.add_argument('--num_hidden_layers',  type=int, default=2)
     parser.add_argument('--Z_dim',              type=int, default=10)
-    parser.add_argument('--use_bn',             type=str, default="False", choices=["True", "False"])
+    parser.add_argument('--use_bn',             type=str, default="True", choices=["True", "False"])
 
     # TimeGAN params
     parser.add_argument('--num_layers', type=int,   default=2)
