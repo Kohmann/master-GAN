@@ -155,14 +155,13 @@ class SolitonDiscriminator(nn.Module):
         self.use_bn = args["use_bn"]
 
         # Discriminator Architecture
-        # input = (B, S, D), e.g. (32, 100, 25)
 
         self.dis_cnn = list()
         self.dis_cnn.append(nn.Conv1d(in_channels = 1,
                                       out_channels=self.hidden_dim,
                                       kernel_size=5,
                                       stride=1,
-                                      padding=2))
+                                      padding="same"))
         if self.use_bn:
             self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim))
         self.dis_cnn.append(nn.LeakyReLU())
@@ -170,7 +169,7 @@ class SolitonDiscriminator(nn.Module):
                                       out_channels=self.hidden_dim * 2,
                                       kernel_size=5,
                                       stride=1,
-                                      padding=2))
+                                      padding="same"))
         if self.use_bn:
             self.dis_cnn.append(nn.BatchNorm1d(self.hidden_dim * 2))
         self.dis_cnn.append(nn.LeakyReLU())
