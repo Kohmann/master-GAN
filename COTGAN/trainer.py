@@ -11,6 +11,9 @@ from architectures import COTGAN, TimeGAN
 from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation, \
     energy_conservation, mass_conservation, momentum_conservation
 
+# FLAGS
+torch.backends.cudnn.deterministic = True
+torch.use_deterministic_algorithms(True)
 
 def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     n_samples = X_hat.size(0)
@@ -86,11 +89,12 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     device = params["device"]
     use_opt_scheduler = params["use_opt_scheduler"]
 
+
     # Prepare datasets
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=batch_size*2,
-        shuffle=True
+        shuffle=True,
     )
 
     # Optimizers
@@ -367,7 +371,7 @@ def load_dataset_and_train(params):
         name=params["model"],
         tags=["tuning"],
         description="",
-        source_files=["architectures.py"],
+        source_files=["architectures.py", "trainer.py"],
         capture_hardware_metrics=True,
         api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3YjFjNGY5MS1kOWU1LTRmZjgtOTNiYS0yOGI2NDdjZGYzNWUifQ==",
     )
