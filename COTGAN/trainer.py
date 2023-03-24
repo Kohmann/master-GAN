@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from tqdm import trange
 import random
 
+import os
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 from utils import DatasetSinus, log_visualizations, DatasetSoliton, DatasetTwoCollidingSolitons
 import neptune.new as neptune
 
@@ -12,8 +15,10 @@ from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, c
     energy_conservation, mass_conservation, momentum_conservation
 
 # FLAGS
+torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
-torch.use_deterministic_algorithms(True)
+#setorch.use_deterministic_algorithms(True)
+
 
 def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
     n_samples = X_hat.size(0)
