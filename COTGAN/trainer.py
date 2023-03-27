@@ -10,7 +10,7 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 from utils import DatasetSinus, log_visualizations, DatasetSoliton, DatasetTwoCollidingSolitons
 import neptune.new as neptune
 
-from architectures import COTGAN, TimeGAN
+from architectures import COTGAN
 from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation, \
     energy_conservation, mass_conservation, momentum_conservation
 
@@ -231,8 +231,7 @@ def load_dataset_and_train(params):
         model = COTGAN(params)
         cotgan_trainer(model, trainset, params, neptune_logger=run)
     elif params["model"] == "timegan":
-        model = TimeGAN(params)
-        timegan_trainer(model, trainset, params, neptune_logger=run, continue_training=False)
+        raise NotImplementedError
     else:
         raise NotImplementedError
 
