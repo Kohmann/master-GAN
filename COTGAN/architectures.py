@@ -1,6 +1,6 @@
 import torch.nn as nn
 from cost_utils import *
-
+ID = "COTGAN"
 class SinusDiscriminator(nn.Module):
     def __init__(self, args):
         super(SinusDiscriminator, self).__init__()
