@@ -10,7 +10,7 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 from utils import DatasetSinus, log_visualizations, DatasetSoliton, DatasetTwoCollidingSolitons
 import neptune.new as neptune
 
-from architectures import COTGAN, TimeGAN
+from architectures import COTGAN
 from metrics import sw_approx, mae_height_diff, two_sample_kolmogorov_smirnov, compare_sin3_generation, \
     energy_conservation, mass_conservation, momentum_conservation
 
@@ -93,6 +93,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     Z_dim = params["Z_dim"]
     device = params["device"]
     use_opt_scheduler = params["use_opt_scheduler"]
+    scheduler_rule = params["scheduler_rule"]# "stepwise" or "linear"
 
 
     # Prepare datasets
@@ -109,12 +110,20 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     gen_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate_g, betas=(beta1, beta2))
     # Schedulers (Optional)
 
+
     if use_opt_scheduler:
-        print("Using use_opt_scheduler:", use_opt_scheduler)
-        step_size = n_epochs // 3
-        disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.8)
-        disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.8)
-        gen_scheduler    = torch.optim.lr_scheduler.StepLR(gen_opt,    step_size=step_size, gamma=0.8)
+        if scheduler_rule == "linear":
+            disc_h_scheduler = torch.optim.lr_scheduler.LinearLR(disc_h_opt, start_factor=1, end_factor=0.5, total_iters=n_epochs)
+            disc_m_scheduler = torch.optim.lr_scheduler.LinearLR(disc_m_opt, start_factor=1, end_factor=0.5, total_iters=n_epochs)
+            gen_scheduler =    torch.optim.lr_scheduler.LinearLR(disc_m_opt, start_factor=1, end_factor=0.5, total_iters=n_epochs)
+
+        elif scheduler_rule == "stepwise":
+            step_size = n_epochs // 3
+            disc_h_scheduler = torch.optim.lr_scheduler.StepLR(disc_h_opt, step_size=step_size, gamma=0.8)
+            disc_m_scheduler = torch.optim.lr_scheduler.StepLR(disc_m_opt, step_size=step_size, gamma=0.8)
+            gen_scheduler    = torch.optim.lr_scheduler.StepLR(gen_opt,    step_size=step_size, gamma=0.8)
+        else:
+            raise ValueError(f"Unknown scheduler rule. Got {scheduler_rule}")
 
     model.to(device)
     x_sw = dataset[:].detach().cpu()
@@ -170,173 +179,6 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     # save model
     torch.save(model.state_dict(), f"./models/{model_name}")
 
-## TIMEGAN
-def embedding_trainer(model, dataloader, e_opt, r_opt, n_epochs, neptune_logger=None):
-    logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
-    for epoch in logger:
-        for X_mb in dataloader:
-            model.zero_grad()
-
-            _, E_loss0, E_loss_T0 = model(X=X_mb, Z=None, obj="autoencoder")
-            loss = np.sqrt(E_loss_T0.item())
-
-            E_loss0.backward()
-            e_opt.step()
-            r_opt.step()
-
-        logger.set_description(f"Epoch: {epoch}, Loss: {loss:.4f}")
-        if epoch % 5 == 0 and neptune_logger is not None:
-            neptune_logger["train/Embedding"].log(loss)
-def supervisor_trainer(model, dataloader, s_opt, g_opt, n_epochs, neptune_logger=None):
-    logger = trange(n_epochs, desc=f"Epoch: 0, Loss: 0")
-    for epoch in logger:
-        for X_mb in dataloader:
-            model.zero_grad()
-
-            S_loss = model(X=X_mb, Z=None, obj="supervisor")
-            loss = np.sqrt(S_loss.item())
-
-            S_loss.backward()
-            s_opt.step()
-
-        logger.set_description(f"Epoch: {epoch}, Loss: {loss:.4f}")
-        if epoch % 5 == 0 and neptune_logger is not None:
-            neptune_logger["train/Supervisor"].log(loss)
-            # writer.add_scalar("Loss/Supervisor", loss, epoch)
-def joint_trainer(model, dataloader, e_opt, r_opt, s_opt, g_opt, d_opt, n_epochs, batch_size, max_seq_len, Z_dim,
-                  dis_thresh, params, neptune_logger=None):
-
-    x_sw = torch.concat([x for x in dataloader]).detach().cpu()
-    n_samples = len(x_sw)
-    fixed_Z_mb = torch.rand((n_samples, max_seq_len, Z_dim))
-    logger = trange(n_epochs, desc=f"Epoch: 0, E_loss: 0, G_loss: 0, D_loss: 0")
-
-    for epoch in logger:
-        for X_mb in dataloader:
-            for _ in range(2):
-                Z_mb = torch.rand(X_mb.size(0), max_seq_len, Z_dim)
-                model.zero_grad()
-                # Generator
-                G_loss = model(X=X_mb, Z=Z_mb, obj="generator")
-                G_loss.backward()
-                G_loss = np.sqrt(G_loss.item())
-
-                g_opt.step()
-                s_opt.step()
-
-                # Embedding
-                model.zero_grad()
-                E_loss, _, E_loss_T0 = model(X=X_mb, Z=Z_mb, obj="autoencoder")
-                E_loss.backward()
-                E_loss = np.sqrt(E_loss.item())
-
-                e_opt.step()
-                r_opt.step()
-
-            Z_mb = torch.rand((batch_size, max_seq_len, Z_dim))
-            model.zero_grad()
-            D_loss = model(X=X_mb, Z=Z_mb, obj="discriminator")
-            if D_loss > dis_thresh:  # don't let the discriminator get too good
-                D_loss.backward()
-                d_opt.step()
-            D_loss = D_loss.item()
-
-        logger.set_description(
-            f"Epoch: {epoch}, E: {E_loss:.4f}, G: {G_loss:.4f}, D: {D_loss:.4f}"
-        )
-
-        if neptune_logger is not None:
-            neptune_logger["train/Embedding"].log(E_loss)
-            neptune_logger["train/Generator"].log(G_loss)
-            neptune_logger["train/Discriminator"].log(D_loss)
-
-
-            if (epoch + 1) > 0:
-                with torch.no_grad():
-                    # generate synthetic data and plot it
-                    X_hat = model(X=None, Z=fixed_Z_mb, obj="inference")
-                    log_generation(X_hat=X_hat, epoch=epoch,x_sw=x_sw, neptune_logger=neptune_logger, params=params)
-
-def timegan_trainer(model, dataset, params, neptune_logger=None, continue_training=False):
-    """The training procedure for TimeGAN
-    Args:
-        - model (torch.nn.module): The model that generates synthetic data
-        - data (numpy.ndarray): The data for training the model
-        - time (numpy.ndarray): The time for the model to be conditioned on
-        - args (dict): The model/training configurations
-    Returns:
-        - generated_data (np.ndarray): The synthetic data generated by the model
-    """
-    batch_size = params["batch_size"]
-    device = params["device"]
-    learning_rate = params["l_rate"]
-    n_epochs = params["n_epochs"]
-    max_seq_len = params["max_seq_len"]
-    dis_thresh = params["dis_thresh"]
-    model_name = params["model_name"]
-    ae_lr = params["l_rate_ae"]
-    Z_dim = params["Z_dim"]
-
-    # Initialize TimeGAN dataset and dataloader
-    dataloader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        batch_size=batch_size,
-        shuffle=True
-    )
-    if continue_training:
-        model.load_state_dict(torch.load(model_name))
-        print("Continuing training from previous checkpoint")
-    model.to(device)
-
-    # Initialize Optimizers
-    e_opt = torch.optim.Adam(model.embedder.parameters(), lr=ae_lr)
-    r_opt = torch.optim.Adam(model.recovery.parameters(), lr=ae_lr)
-    s_opt = torch.optim.Adam(model.supervisor.parameters(), lr=learning_rate)
-    g_opt = torch.optim.Adam(model.generator.parameters(), lr=learning_rate)
-    d_opt = torch.optim.Adam(model.discriminator.parameters(), lr=learning_rate)
-
-    if not continue_training:
-        print("\nStart Embedding Network Training")
-        embedding_trainer(
-            model=model,
-            dataloader=dataloader,
-            e_opt=e_opt,
-            r_opt=r_opt,
-            n_epochs=500 if n_epochs > 500 else n_epochs,
-            neptune_logger=neptune_logger
-        )
-
-        print("\nStart Training with Supervised Loss Only")
-        supervisor_trainer(
-            model=model,
-            dataloader=dataloader,
-            s_opt=s_opt,
-            g_opt=g_opt,
-            n_epochs=500 if n_epochs > 500 else n_epochs,
-            neptune_logger=neptune_logger
-        )
-
-    print("\nStart Joint Training")
-    joint_trainer(
-        model=model,
-        dataloader=dataloader,
-        e_opt=e_opt,
-        r_opt=r_opt,
-        s_opt=s_opt,
-        g_opt=g_opt,
-        d_opt=d_opt,
-        n_epochs=n_epochs,
-        batch_size=batch_size,
-        max_seq_len=max_seq_len,
-        Z_dim=Z_dim,
-        dis_thresh=dis_thresh,
-        neptune_logger=neptune_logger,
-        params=params
-    )
-    # Save model, args, and hyperparameters
-    torch.save(model.state_dict(), model_name)
-    print(f"Training Complete and {model_name} saved")
-
 def create_dataset(dataset, n_samples, p, device="cpu"):
     print(f"dataset: {dataset}")
     if "sinus" in dataset:
@@ -389,8 +231,7 @@ def load_dataset_and_train(params):
         model = COTGAN(params)
         cotgan_trainer(model, trainset, params, neptune_logger=run)
     elif params["model"] == "timegan":
-        model = TimeGAN(params)
-        timegan_trainer(model, trainset, params, neptune_logger=run, continue_training=False)
+        raise NotImplementedError
     else:
         raise NotImplementedError
 
@@ -476,7 +317,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='cotgan', choices=['cotgan', 'timegan'])
     parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     # Dataset params
-    parser.add_argument('--dataset',      type=str,   default='soliton', choices=['sinus', 'soliton', 'twosolitons'])
+    parser.add_argument('--dataset',      type=str,   default='sinus', choices=['sinus', 'soliton', 'twosolitons'])
     # For sinus
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
@@ -500,14 +341,15 @@ if __name__ == '__main__':
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--n_epochs',   type=int,   default=1)
-    parser.add_argument('--l_rate',     type=float, default=0.001)
-    parser.add_argument('--l_rate_g',   type=float, default=0.001)
+    parser.add_argument('--n_epochs',   type=int,   default=10)
+    parser.add_argument('--l_rate',     type=float, default=0.1)
+    parser.add_argument('--l_rate_g',   type=float, default=0.1)
     parser.add_argument('--batch_size', type=int,   default=32)
     parser.add_argument('--optimizer',  type=str,   default='Adam')
     parser.add_argument('--beta1',      type=float, default=0.5)
     parser.add_argument('--beta2',      type=float, default=0.9)
-    parser.add_argument('--use_opt_scheduler', type=str, default="False", choices=["True", "False"])
+    parser.add_argument('--use_opt_scheduler', type=str, default="True", choices=["True", "False"])
+    parser.add_argument('--scheduler_rule',    type=str, default="linear", choices=["stepwise", "linear"])
 
     # COTGAN architecture params
     parser.add_argument('--rnn_type',           type=str, default='GRU', choices=['GRU', 'LSTM'])

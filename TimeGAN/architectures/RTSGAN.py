@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import argparse
 
 import torch
 import torch.nn as nn
@@ -304,3 +304,37 @@ class RTSGAN(torch.nn.Module):
             raise ValueError("`obj` should be either `autoencoder`, `supervisor`, `generator`, or `discriminator`")
 
         return loss
+
+import numpy as np
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max_seq_len', type=int, default=12)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--lr', type=float, default=0.0002)
+    parser.add_argument('--beta1', type=float, default=0.5)
+    parser.add_argument('--beta2', type=float, default=0.999)
+    parser.add_argument('--Z_dim', type=int, default=120)
+    parser.add_argument('--hidden_dim', type=int, default=40)
+    parser.add_argument('--num_layers', type=int, default=2)
+    parser.add_argument('--feature_dim', type=int, default=3)
+    parser.add_argument('--device', type=str, default='cpu')
+    parser.add_argument('--spectralnorm', type=bool, default=False)
+    parser.add_argument('--load_ae', type=bool, default=False)
+
+    args = parser.parse_args()
+
+    params = vars(args)
+
+    # Test data
+    data = np.random.rand(64, 12, 1)
+
+
+    data = data.reshape((-1, 12, 1))
+    data = torch.from_numpy(data)
+    data = data.to(params['device'])
+
+    # Initialize the model
+    model = RTSGAN(params)
+    print(model)
