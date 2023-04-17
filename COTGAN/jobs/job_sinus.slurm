@@ -29,4 +29,4 @@ module load Python/3.8.6-GCCcore-10.2.0
 
 pip install -r requirements.txt
 
-python3 trainer.py --model cotgan --n_epochs 1200 --batch_size 72 --l_rate 0.0005 --l_rate_g 0.0005 --use_opt_scheduler False --scheduler_rule stepwise --use_bn False --reg_lam 0.01 --sinkhorn_eps 10.0 --dataset sinus --max_seq_len 100 --trainset_size 1536 --testset_size 1000 --gen_rnn_num_layers 1 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 1 --dis_rnn_hidden_dim 64 --hidden_dim 64 --num_hidden_layers 2 --Z_dim 50 --J_dim 32 --device cuda
+python3 trainer.py --model cotgan --n_epochs 600 --batch_size 72 --l_rate 0.0005 --l_rate_g 0.0005 --use_opt_scheduler False --scheduler_rule stepwise --use_bn False --reg_lam 0.01 --sinkhorn_eps 10.0 --dataset sinus --max_seq_len 100 --trainset_size 1536 --testset_size 1000 --gen_rnn_num_layers 1 --gen_rnn_hidden_dim 64 --dis_rnn_num_layers 1 --dis_rnn_hidden_dim 64 --hidden_dim 64 --num_hidden_layers 2 --Z_dim 50 --J_dim 32 --device cuda
