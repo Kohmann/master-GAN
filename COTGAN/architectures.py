@@ -266,6 +266,9 @@ class COTGAN(nn.Module):
         self.sinkhorn_eps = args["sinkhorn_eps"]
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
+        self.Z_distribution = args["Z_distribution"]
+
+
         """if "sinus" in args["dataset"]:
             self.generator = SinusGenerator(args=args)
             self.discriminator_h = SinusDiscriminator(args=args)
@@ -275,6 +278,7 @@ class COTGAN(nn.Module):
             self.discriminator_h = SolitonDiscriminator(args=args)
             self.discriminator_m = SolitonDiscriminator(args=args)
             """
+
         self.generator = SolitonGenerator(args=args)
         self.discriminator_h = SolitonDiscriminator(args=args)
         self.discriminator_m = SolitonDiscriminator(args=args)
@@ -325,7 +329,12 @@ class COTGAN(nn.Module):
         return mixed_sinkhorn_loss
 
     def generate(self, N):
-        Z = torch.randn(N, self.max_seq_len, self.Z_dim, device=self.device)
+        if self.Z_distribution == "uniform":
+            Z = torch.rand(N, self.max_seq_len, self.Z_dim, device=self.device)*2.0 - 1.0 # Uniform in [-1, 1]
+        elif self.Z_distribution == "normal":
+            Z = torch.randn(N, self.max_seq_len, self.Z_dim, device=self.device)
+        else:
+            raise ValueError("Invalid Z_distribution. Must be in (uniform, normal)")
         X_hat = self.generator(Z)
         return X_hat.cpu().detach()
     def forward(self, Z, X, obj="inference"):
