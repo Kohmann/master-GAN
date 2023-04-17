@@ -94,6 +94,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     device = params["device"]
     use_opt_scheduler = params["use_opt_scheduler"]
     scheduler_rule = params["scheduler_rule"]# "stepwise" or "linear"
+    Z_distribution = params["Z_distribution"]
 
 
     # Prepare datasets
@@ -128,7 +129,10 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     model.to(device)
     x_sw = dataset[:].detach().cpu()
 
-    fixed_Z_mb = torch.randn(len(x_sw), max_seq_len, Z_dim, device=device)
+    if Z_distribution == "uniform":
+        fixed_Z_mb = 2 * torch.rand(len(x_sw), max_seq_len, Z_dim, device=device) - 1.0  # Uniform in [-1, 1]
+    else: # normal
+        fixed_Z_mb = torch.randn(len(x_sw), max_seq_len, Z_dim, device=device)
 
     logger = trange(n_epochs, desc=f"Epoch: 0, G_loss: 0, D_loss: 0")
     G_loss = 0
@@ -137,7 +141,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
         for X in dataloader:
             if X.size(0) != batch_size*2: continue
             X = X.to(device)
-            Z = torch.randn(X.size(0), max_seq_len, Z_dim, device=device)
+            Z = torch.randn(X.size(0), max_seq_len, Z_dim, device=device) if Z_distribution == "normal" else 2 * torch.rand(X.size(0), max_seq_len, Z_dim, device=device) - 1.0
             # Train discriminator
             #print(f"X shape {X.size()}, Z shape {Z.size()}")
             D_loss = model(Z, X, obj="discriminator")
@@ -317,7 +321,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='cotgan', choices=['cotgan', 'timegan'])
     parser.add_argument('--model_name', type=str, default='model_cotgan.pt')
     # Dataset params
-    parser.add_argument('--dataset',      type=str,   default='sinus', choices=['sinus', 'soliton', 'twosolitons'])
+    parser.add_argument('--dataset',      type=str,   default='soliton', choices=['sinus', 'soliton', 'twosolitons'])
     # For sinus
     parser.add_argument('--max_seq_len',  type=int,   default=25)
     parser.add_argument('--feature_dim',  type=int,   default=3)
@@ -341,7 +345,7 @@ if __name__ == '__main__':
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--n_epochs',   type=int,   default=10)
+    parser.add_argument('--n_epochs',   type=int,   default=3)
     parser.add_argument('--l_rate',     type=float, default=0.1)
     parser.add_argument('--l_rate_g',   type=float, default=0.1)
     parser.add_argument('--batch_size', type=int,   default=32)
@@ -362,11 +366,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_hidden_layers',  type=int, default=2)
     parser.add_argument('--Z_dim',              type=int, default=10)
     parser.add_argument('--use_bn',             type=str, default="True", choices=["True", "False"])
+    parser.add_argument('--Z_distribution',     type=str, default='uniform', choices=['uniform', 'normal'])
 
-    # TimeGAN params
-    parser.add_argument('--num_layers', type=int,   default=2)
-    parser.add_argument('--dis_thresh', type=float, default=0.15)
-    parser.add_argument('--l_rate_ae',  type=float, default=0.001)
+
     # Loss params
     parser.add_argument('--scaling_coef',     type=float, default=1.0)
     parser.add_argument('--sinkhorn_eps',     type=float, default=0.8)
