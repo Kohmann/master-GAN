@@ -353,7 +353,7 @@ if __name__ == '__main__':
     parser.add_argument('--beta1',      type=float, default=0.5)
     parser.add_argument('--beta2',      type=float, default=0.9)
     parser.add_argument('--use_opt_scheduler', type=str, default="True", choices=["True", "False"])
-    parser.add_argument('--scheduler_rule',    type=str, default="linear", choices=["stepwise", "linear"])
+    parser.add_argument('--scheduler_rule',    type=str, default="stepwise", choices=["stepwise", "linear"])
 
     # COTGAN architecture params
     parser.add_argument('--rnn_type',           type=str, default='GRU', choices=['GRU', 'LSTM'])
