@@ -329,12 +329,12 @@ if __name__ == '__main__':
     parser.add_argument('--noise',        type=float, default=0.0)
     # For soliton
     parser.add_argument('--P',            type=int,   default=50)
-    parser.add_argument('--spatial_len',  type=int,   default=50) # M
-    parser.add_argument('--t_steps',      type=int,   default=5)  # N
+    parser.add_argument('--spatial_len',  type=int,   default=120) # M
+    parser.add_argument('--t_steps',      type=int,   default=120)  # N
     parser.add_argument('--eta',          type=float, default=6.0)
     parser.add_argument('--gamma',        type=float, default=1.0)
     parser.add_argument('--difficulty',   type=str,   default='easy', choices=['easy', 'medium'])
-    parser.add_argument('--t_max',        type=float, default=6.0) # Upper time limit
+    parser.add_argument('--t_max',        type=float, default=10.0) # Upper time limit
 
     # for twosolitons
     parser.add_argument('--dx',           type=int,   default=120)
