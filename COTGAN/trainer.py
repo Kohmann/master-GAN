@@ -72,9 +72,8 @@ def log_generation(X_hat, epoch, params, x_sw, neptune_logger=None):
             neptune_logger["height_diff_mae"].log(mae_height_diff(fake))
 
         # Energy conservation
-        dx = params["dx"]
-        if "twosolitons" == params["dataset"]:
-            dx = 50/360 # P / M
+        dx = params["P"] / params["dx"] if "twosolitons" == params["dataset"] else params["P"] / params["spatial_len"]
+
         H_error = energy_conservation(fake, dx=dx, eta=params["eta"], gamma=params["gamma"]).mean().item()
         H_mass_error     = mass_conservation(fake, dx=dx).mean().item()
         H_momentum_error = momentum_conservation(fake, dx=dx).mean().item()
