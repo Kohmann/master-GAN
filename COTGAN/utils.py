@@ -176,7 +176,7 @@ class DatasetStocks(torch.utils.data.Dataset):
 class DatasetSoliton(torch.utils.data.Dataset):
     def __init__(self, n_samples, P, t_range, c_range, spatial_len=50, t_steps=25, device="cpu", difficulty="easy"):
         self.t_max = t_range[1]
-        self.t_range = t_range # [0, 6]
+        self.t_range = t_range # [0, 10]
         self.c_range = c_range # [0.5, 2]
         self.P = P # period
         self.n_samples = n_samples
@@ -320,6 +320,7 @@ def visualization(ori_data, generated_data, analysis):
             prep_data_hat = np.concatenate((prep_data_hat,
                                             np.reshape(np.mean(generated_data[i, :, :], 1), [1, seq_len])))
 
+    print(f"prep_data.shape: {prep_data.shape}")
     # Visualization parameter
     colors = ["tab:blue" for i in range(anal_sample_no)] + ["tab:orange" for i in range(anal_sample_no)]
 

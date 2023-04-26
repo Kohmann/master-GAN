@@ -171,7 +171,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
         if neptune_logger is not None:
             neptune_logger["train/Generator"].log(G_loss)
             neptune_logger["train/Discriminator"].log(-D_loss)
-            neptune_logger["train/martingale_regularization"].log((G_loss-D_loss))
+            neptune_logger["train/martingale_regularization"].log((D_loss + G_loss) * params["reg_lam"])
 
             if (epoch + 1)  > 0: # (epoch + 1) % 10 == 0: #
                 with torch.no_grad():
