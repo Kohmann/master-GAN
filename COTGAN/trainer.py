@@ -341,7 +341,7 @@ if __name__ == '__main__':
     # for twosolitons
     parser.add_argument('--dx',           type=int,   default=120)
     parser.add_argument('--dt',           type=int,   default=30)
-    parser.add_argument('--use_convservation_loss', type=str,   default="False", choices=["True", "False"])
+    parser.add_argument('--use_convservation_loss', type=str,   default="True", choices=["True", "False"])
     parser.add_argument('--conservation_weight',    type=float, default=0.01)
 
     # Dataset sizes
