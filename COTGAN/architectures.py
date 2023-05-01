@@ -1,5 +1,6 @@
 import torch.nn as nn
 from cost_utils import *
+from metrics import energy_conservation, momentum_conservation, mass_conservation
 ID = "COTGAN"
 class SinusDiscriminator(nn.Module):
     def __init__(self, args):
@@ -267,6 +268,12 @@ class COTGAN(nn.Module):
         self.sinkhorn_l = args["sinkhorn_l"]
         self.reg_lam = args["reg_lam"]
         self.Z_distribution = args["Z_distribution"]
+        self.dx = args["P"] / args["feature_dim"]
+        self.eta = args["eta"]
+        self.gamma = args["gamma"]
+
+        self.use_convservation_loss = False  # params["use_convservation_loss"] # False
+        self.conservation_weight = 0.1  # params["conservation_weight"]
 
 
         """if "sinus" in args["dataset"]:
@@ -326,8 +333,15 @@ class COTGAN(nn.Module):
         mixed_sinkhorn_loss = compute_mixed_sinkhorn_loss(real_data, fake_data, m_real, m_fake, h_fake,
                                                           real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
                                                           self.sinkhorn_eps, self.sinkhorn_l)
-        return mixed_sinkhorn_loss
+        if self.use_convservation_loss:
+            mixed_sinkhorn_loss += self.conservation_weight * (self.compute_conservation_loss(fake_data) +
+                                                               self.compute_conservation_loss(fake_data_p))
 
+        return mixed_sinkhorn_loss
+    def compute_conservation_loss(self, fake_data):
+        return energy_conservation(fake_data, dx=self.dx, eta=self.eta, gamma=self.gamma) + \
+            momentum_conservation(fake_data, dx=self.dx) + \
+            mass_conservation(fake_data, dx=self.dx)
     def generate(self, N):
         if self.Z_distribution == "uniform":
             Z = torch.rand(N, self.max_seq_len, self.Z_dim, device=self.device)*2.0 - 1.0 # Uniform in [-1, 1]

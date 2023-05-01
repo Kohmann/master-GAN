@@ -95,6 +95,9 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     scheduler_rule = params["scheduler_rule"]# "stepwise" or "linear"
     Z_distribution = params["Z_distribution"]
 
+    use_convservation_loss = False # params["use_convservation_loss"] # False
+    conservation_weight = 0.1  # params["conservation_weight"]
+
 
     # Prepare datasets
     dataloader = torch.utils.data.DataLoader(
@@ -154,6 +157,8 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
             # Train generator
             gen_opt.zero_grad()
             G_loss = model(Z, X, obj="generator")
+
+
             G_loss.backward()
             gen_opt.step()
 
@@ -338,13 +343,15 @@ if __name__ == '__main__':
     # for twosolitons
     parser.add_argument('--dx',           type=int,   default=120)
     parser.add_argument('--dt',           type=int,   default=30)
+    parser.add_argument('--use_convservation_loss', type=str,   default="False", choices=["True", "False"])
+    parser.add_argument('--conservation_weight',    type=float, default=0.01)
 
     # Dataset sizes
     parser.add_argument('--trainset_size',type=int,   default=32*2)
     parser.add_argument('--testset_size', type=int,   default=32*2)
 
     # Hyperparameters
-    parser.add_argument('--n_epochs',   type=int,   default=3)
+    parser.add_argument('--n_epochs',   type=int,   default=10)
     parser.add_argument('--l_rate',     type=float, default=0.1)
     parser.add_argument('--l_rate_g',   type=float, default=0.1)
     parser.add_argument('--batch_size', type=int,   default=32)
@@ -385,6 +392,7 @@ if __name__ == '__main__':
         print("torch.cuda.get_device_name():", torch.cuda.get_device_name(0))
         args["device_name"] = torch.cuda.get_device_name(0)
 
+    args["use_convservation_loss"] = args["use_convservation_loss"] == "True"
     args["use_bn"] = args["use_bn"] == "True"
     args["use_opt_scheduler"] = args["use_opt_scheduler"] == "True"
     if args["dataset"] == "soliton":
