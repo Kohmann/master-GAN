@@ -272,8 +272,8 @@ class COTGAN(nn.Module):
         self.eta = args["eta"]
         self.gamma = args["gamma"]
 
-        self.use_convservation_loss = False  # params["use_convservation_loss"] # False
-        self.conservation_weight = 0.1  # params["conservation_weight"]
+        self.use_convservation_loss = args["use_convservation_loss"] # False
+        self.conservation_weight = args["conservation_weight"]
 
 
         """if "sinus" in args["dataset"]:

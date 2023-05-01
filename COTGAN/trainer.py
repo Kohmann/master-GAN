@@ -157,8 +157,6 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
             # Train generator
             gen_opt.zero_grad()
             G_loss = model(Z, X, obj="generator")
-
-
             G_loss.backward()
             gen_opt.step()
 
@@ -371,7 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('--hidden_dim',         type=int, default=64)
     parser.add_argument('--num_hidden_layers',  type=int, default=2)
     parser.add_argument('--Z_dim',              type=int, default=10)
-    parser.add_argument('--use_bn',             type=str, default="True", choices=["True", "False"])
+    parser.add_argument('--use_bn',             type=str, default="False", choices=["True", "False"])
     parser.add_argument('--Z_distribution',     type=str, default='uniform', choices=['uniform', 'normal'])
 
 
