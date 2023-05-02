@@ -334,8 +334,7 @@ class COTGAN(nn.Module):
                                                           real_data_p, fake_data_p, m_real_p, h_real_p, h_fake_p,
                                                           self.sinkhorn_eps, self.sinkhorn_l)
         if self.use_convservation_loss:
-            mixed_sinkhorn_loss += self.conservation_weight * (self.compute_conservation_loss(fake_data) +
-                                                               self.compute_conservation_loss(fake_data_p)).mean(dim=(0,1))
+            mixed_sinkhorn_loss += self.conservation_weight * self.compute_conservation_loss(torch.cat((fake_data,fake_data_p), dim=0)).mean(dim=(0,1))
 
         return mixed_sinkhorn_loss
     def compute_conservation_loss(self, fake_data):
