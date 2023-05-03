@@ -95,7 +95,11 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     scheduler_rule = params["scheduler_rule"]# "stepwise" or "linear"
     Z_distribution = params["Z_distribution"]
 
-    use_convservation_loss = params["use_convservation_loss"]
+    use_convservation_loss = False #params["use_convservation_loss"]
+    if params["use_convservation_loss"]:
+        use_convservation_loss = True
+        params["use_convservation_loss"] = False
+
     conservation_loss_init = params["conservation_loss_init"]
     conservation_loss_toggle_epoch = int(n_epochs * conservation_loss_init)
 
