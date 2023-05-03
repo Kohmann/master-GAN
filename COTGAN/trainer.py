@@ -96,7 +96,8 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
     Z_distribution = params["Z_distribution"]
 
     use_convservation_loss = params["use_convservation_loss"]
-    conservation_loss_toggle_epoch = int(n_epochs * 0.5)
+    conservation_loss_init = 0.5
+    conservation_loss_toggle_epoch = int(n_epochs * conservation_loss_init)
 
 
 
