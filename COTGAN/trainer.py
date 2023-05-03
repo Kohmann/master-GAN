@@ -171,7 +171,7 @@ def cotgan_trainer(model, dataset, params, neptune_logger=None):
                 disc_m_scheduler.step()
                 gen_scheduler.step()
 
-        if use_convservation_loss and (epoch % conservation_loss_toggle_epoch == 0):
+        if use_convservation_loss and ( (epoch+1) % conservation_loss_toggle_epoch == 0):
             model.toggle_compute_conservation_loss(toggle=True)
 
         #G_loss = G_loss.detach()#.cpu()
