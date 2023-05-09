@@ -381,7 +381,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_bn',             type=str, default="False", choices=["True", "False"])
     parser.add_argument('--Z_distribution',     type=str, default='uniform', choices=['uniform', 'normal'])
     # gen_conv
-    parser.add_argument('--gen_conv', type=str, default="True", choices=["True", "False"])
+    parser.add_argument('--gen_conv', type=str, default="False", choices=["True", "False"])
 
     # Loss params
     parser.add_argument('--scaling_coef',     type=float, default=1.0)
