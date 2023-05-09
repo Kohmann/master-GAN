@@ -257,6 +257,66 @@ class SolitonGenerator(nn.Module):
         out = self.gen_FC(x)
         return out
 
+class SolitonGeneratorConv(nn.Module):
+    def __init__(self, args):
+        super(SolitonGeneratorConv, self).__init__()
+        # Basic parameters
+        self.device = args["device"]
+        self.batch_size = args["batch_size"]
+        self.Z_dim = args["Z_dim"]
+
+        self.hidden_dim = args["hidden_dim"]
+        self.gen_rnn_hidden_dim = args["gen_rnn_hidden_dim"]
+        self.gen_rnn_num_layers = args["gen_rnn_num_layers"]
+        self.num_hidden_layers = args["num_hidden_layers"]
+        self.feature_dim = args["feature_dim"]
+        self.max_seq_len = args["max_seq_len"]
+        self.rnn_type = args["rnn_type"] # GRU or LSTM
+        self.use_bn = args["use_bn"]
+
+        self.gen_rnn = nn.GRU(input_size=self.Z_dim,
+                              hidden_size=self.gen_rnn_hidden_dim,
+                              num_layers=self.gen_rnn_num_layers-1 if self.gen_rnn_num_layers > 1 else 1,
+                              batch_first=True)
+        # For Conv layers
+        input_channels = self.gen_rnn_hidden_dim
+        if self.gen_rnn_num_layers > 1:
+            input_channels = self.gen_rnn_hidden_dim * 2
+            self.gen_rnn2 = nn.GRU(input_size=self.gen_rnn_hidden_dim,
+                                   hidden_size=self.gen_rnn_hidden_dim * 2,
+                                   num_layers=1,
+                                   batch_first=True)
+
+        self.gen_Conv = list()
+        for i in range(self.num_hidden_layers - 1):
+            self.gen_Conv.append(nn.Conv1d(in_channels=input_channels,
+                                           out_channels=self.hidden_dim,
+                                           kernel_size=3,
+                                           padding=1))
+            if self.use_bn:
+                self.gen_Conv.append(nn.BatchNorm1d(self.hidden_dim))
+            #self.gen_Conv.append(nn.LeakyReLU())
+            input_channels = self.hidden_dim
+
+        self.gen_Conv.append(nn.Conv1d(in_channels=input_channels,
+                                       out_channels=self.feature_dim,
+                                       kernel_size=3,
+                                       padding=1))
+        self.gen_Conv.append(nn.Sigmoid())
+        self.gen_Conv = nn.Sequential(*self.gen_Conv)
+
+    def forward(self, z):
+        # (B x S x Z)
+        x, _ = self.gen_rnn(z)
+        # (B x S x gen_rnn_hidden_dim)
+        if self.gen_rnn_num_layers > 1:
+            x, _ = self.gen_rnn2(x)
+        # (B x S x gen_rnn_hidden_dim * 2)
+        x = x.transpose(1, 2)  # (B x gen_rnn_hidden_dim * 2 x S)
+        out = self.gen_Conv(x)  # (B x feature_dim x S)
+        out = out.transpose(1, 2)  # (B x S x feature_dim)
+        return out
+
 class COTGAN(nn.Module):
     def __init__(self, args):
         super(COTGAN, self).__init__()
@@ -286,7 +346,7 @@ class COTGAN(nn.Module):
             self.discriminator_m = SolitonDiscriminator(args=args)
             """
 
-        self.generator = SolitonGenerator(args=args)
+        self.generator = SolitonGenerator(args=args) if args["gen_conv"] == False else SolitonGeneratorConv(args=args)
         self.discriminator_h = SolitonDiscriminator(args=args)
         self.discriminator_m = SolitonDiscriminator(args=args)
 

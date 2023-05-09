@@ -380,7 +380,8 @@ if __name__ == '__main__':
     parser.add_argument('--Z_dim',              type=int, default=10)
     parser.add_argument('--use_bn',             type=str, default="False", choices=["True", "False"])
     parser.add_argument('--Z_distribution',     type=str, default='uniform', choices=['uniform', 'normal'])
-
+    # gen_conv
+    parser.add_argument('--gen_conv', type=str, default="True", choices=["True", "False"])
 
     # Loss params
     parser.add_argument('--scaling_coef',     type=float, default=1.0)
@@ -402,6 +403,7 @@ if __name__ == '__main__':
     args["use_convservation_loss"] = args["use_convservation_loss"] == "True"
     args["use_bn"] = args["use_bn"] == "True"
     args["use_opt_scheduler"] = args["use_opt_scheduler"] == "True"
+    args["gen_conv"] = args["gen_conv"] == "True"
     if args["dataset"] == "soliton":
         args["max_seq_len"] = args["t_steps"]
         args["feature_dim"] = args["spatial_len"]
