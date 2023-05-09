@@ -315,7 +315,7 @@ class SolitonGeneratorConv(nn.Module):
         x = x.transpose(1, 2)  # (B x gen_rnn_hidden_dim * 2 x S)
         out = self.gen_Conv(x)  # (B x feature_dim x S)
         out = out.transpose(1, 2)  # (B x S x feature_dim)
-        return out
+        return out.contiguous()
 
 class COTGAN(nn.Module):
     def __init__(self, args):
