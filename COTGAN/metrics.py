@@ -85,7 +85,7 @@ def momentum_conservation(u, dx):
 
 from geomloss import SamplesLoss
 
-def sinkhorn_distance(x, y, blur=0.01):
+def sinkhorn_distance(x, y, blur=0.01, scaling=0.95):
     """
     Sinkhorn distance between two samples x and y. Is an approximation of the Wasserstein distance.
     :param x: torch tensor: samples from the first distribution
@@ -95,10 +95,10 @@ def sinkhorn_distance(x, y, blur=0.01):
     Permisson is granted in LICENSE.txt
     """
     # Define a Sinkhorn (~Wasserstein) loss between sampled measures
-    sinkhorn = SamplesLoss(loss="sinkhorn", p=2, blur=0.05, scaling=0.95)
+    sinkhorn = SamplesLoss(loss="sinkhorn", p=1, blur=blur, scaling=scaling)
     return sinkhorn(x, y).detach()
 
-def MMD(x, y):
+def MMD(x, y, p=2, blur=0.05):
     """
     Maximum Mean Discrepancy between two samples x and y.
     :param x: torch tensor: samples from the first distribution
@@ -108,8 +108,8 @@ def MMD(x, y):
     Permisson is granted in LICENSE.txt
     """
     # Define a Sinkhorn (~Wasserstein) loss between sampled measures
-    MMD = SamplesLoss(loss="gaussian", p=2, blur=0.05)
-    return MMD(x, y).detach()
+    MMD = SamplesLoss(loss="gaussian", p=p, blur=blur)
+    return MMD(x, y, ).detach()
 
 
 def sw_approx(mu: torch.Tensor, nu: torch.Tensor):
